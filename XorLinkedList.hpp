@@ -114,7 +114,7 @@ template <typename T>
 template <typename inputIterator>
 typename std::pair< typename XorLinkedList<T>::Node *, typename XorLinkedList<T>::Node *>
 XorLinkedList<T>::Node::newList(inputIterator begin,inputIterator end) {
-    Node *list,*tail;
+    Node *list = nullptr,*tail = nullptr;
     try {
         assert(begin != end && "input feed is empty");
         list = new Node(&*begin); //cast iter to pointer
@@ -137,7 +137,7 @@ template <typename T>
 template < typename inputIterator>
 typename std::pair< typename XorLinkedList<T>::Node *, typename XorLinkedList<T>::Node *>
 XorLinkedList<T>::Node::newList(std::move_iterator<inputIterator> begin,std::move_iterator<inputIterator> end) {
-    Node *list,*tail;
+    Node *list = nullptr,*tail = nullptr;
     try {
         assert(begin != end && "input feed is empty");
          list = new Node(std::move(begin));
