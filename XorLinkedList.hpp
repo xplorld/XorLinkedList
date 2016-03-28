@@ -27,12 +27,13 @@ private:
         T value;
         
         Node(T &&v);
+        Node(const T &v);
         
         template < typename inputIterator>
         Node(const inputIterator v);
         
         Node* join(T &&v);
-        Node* join(const T v);
+        Node* join(const T& v);
 
         template < typename inputIterator>
         Node* join(const inputIterator v);
@@ -73,7 +74,7 @@ public:
     };
     XorLinkedList();
     XorLinkedList(const T* v) ;
-    XorLinkedList(T v) ;
+    XorLinkedList(const T& v) ;
     XorLinkedList(T&& v) ;
     XorLinkedList(std::initializer_list<T> array);
     XorLinkedList(T *array,size_t count);
@@ -104,22 +105,31 @@ XorLinkedList<T>::Node::Node(const inputIterator v) : xorptr(0),value(*v){} //co
 
 
 template <typename T>
+XorLinkedList<T>::Node::Node(const T &v) : xorptr(0),value(v){} //copy
+
+template <typename T>
 XorLinkedList<T>::Node::Node(T &&v) : xorptr(0),value(std::move(v)){}
 
 template <typename T>
 template <typename inputIterator>
 typename std::pair< typename XorLinkedList<T>::Node *, typename XorLinkedList<T>::Node *>
 XorLinkedList<T>::Node::newList(inputIterator begin,inputIterator end) {
-    
-    assert(begin != end && "input feed is empty");
-    auto list = new Node(&*begin); //cast iter to pointer
-    ++begin;
-    auto tail = list;
-    while (begin != end){
-        
-        tail = tail->join(&*begin);
+    Node *list,*tail;
+    try {
+        assert(begin != end && "input feed is empty");
+        list = new Node(&*begin); //cast iter to pointer
         ++begin;
+        tail = list;
+        while (begin != end){
+            
+            tail = tail->join(&*begin);
+            ++begin;
+        }
+    } catch(...) {
+        delete list;
+        throw;
     }
+
     return std::make_pair(list, tail);
 }
 
@@ -127,15 +137,22 @@ template <typename T>
 template < typename inputIterator>
 typename std::pair< typename XorLinkedList<T>::Node *, typename XorLinkedList<T>::Node *>
 XorLinkedList<T>::Node::newList(std::move_iterator<inputIterator> begin,std::move_iterator<inputIterator> end) {
-    assert(begin != end && "input feed is empty");
-    auto list = new Node(std::move(begin));
-    ++begin;
-    auto tail = list;
-    while (begin != end){
-        
-        tail = tail->join(std::move(begin));
+    Node *list,*tail;
+    try {
+        assert(begin != end && "input feed is empty");
+         list = new Node(std::move(begin));
         ++begin;
+         tail = list;
+        while (begin != end){
+            
+            tail = tail->join(std::move(begin));
+            ++begin;
+        }
+    } catch(...) {
+        delete list;
+        throw;
     }
+
     return std::make_pair(list, tail);
 }
 
@@ -167,7 +184,7 @@ XorLinkedList<T>::Node::~Node() {
 }
 
 template <typename T>
-typename XorLinkedList<T>::Node * XorLinkedList<T>::Node::join(T v) {
+typename XorLinkedList<T>::Node * XorLinkedList<T>::Node::join(const T &v) {
     //A->B, C.
     //B.p = A, C.p = 0
     
@@ -202,7 +219,7 @@ typename XorLinkedList<T>::Node * XorLinkedList<T>::Node::join(T&& v) {
     //B.p = A, C.p = 0
     
     Node *endNode = this;
-    Node *newNode = newList(std::move(v));
+    Node *newNode = new Node(std::move(v));
     endNode->xorptr = endNode->xorptr ^ PtrToInt((void *)newNode);
     newNode->xorptr = PtrToInt((void *)endNode);
     //A->B->C
@@ -270,7 +287,7 @@ XorLinkedList<T>::XorLinkedList() : head(nullptr), tail(nullptr) {}
 
 
 template <typename T>
-XorLinkedList<T>::XorLinkedList(const T v) : head(new Node(std::move(v))), tail(head) {}
+XorLinkedList<T>::XorLinkedList(const T& v) : head(new Node(v)), tail(head) {}
 
 template <typename T>
 XorLinkedList<T>::XorLinkedList(T &&v) : head(new Node(std::move(v))), tail(head) {}
@@ -303,6 +320,7 @@ XorLinkedList<T>::XorLinkedList(inputIterator begin,inputIterator end) {
 
 template <typename T>
 XorLinkedList<T>::~XorLinkedList() {
+    printf("deleting linked list\n");
     if (head) delete head;
     //no need to delete tail, it will be deleted by Node deconstructer recursively
 }
@@ -317,14 +335,13 @@ XorLinkedList<T>::XorLinkedList(XorLinkedList&& another) {
 
 template <typename T>
 void XorLinkedList<T>::append(const T &v){
-    if (tail) {
-        tail = tail->join(&v);
-    } else {
-        //empty linked list
-        head = new Node(&v);
-        tail = head;
-    }
-
+        if (tail) {
+            tail = tail->join(&v);
+        } else {
+            //empty linked list
+            head = new Node(&v);
+            tail = head;
+        }
 }
 
 template <typename T>
