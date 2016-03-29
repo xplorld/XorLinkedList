@@ -29,8 +29,8 @@ Good old double Linked list has 2 fields of address pointers, `prev` and `next`.
 ### ToDo
 
 - `rbegin` and `rend`
-- make `Iterator` a real STL-compliant `iterator`
-- `operator==`
+- ~~make `Iterator` a real STL-compliant `iterator`~~
+- ~~`operator==`~~
 - `size`?
 - remove?
 - new List of slice from Iterator pair?
