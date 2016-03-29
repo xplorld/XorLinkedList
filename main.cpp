@@ -6,9 +6,9 @@
 //  Copyright © 2016年 xplorld. All rights reserved.
 //
 #include "XorLinkedList.hpp"
-#include <iterator>
 #include <cstdio>
 #include <vector>
+#include <algorithm>
 
 class Shouter {
 public:
@@ -90,7 +90,7 @@ void moveSelf() {
                                        );
     auto another = std::move(list);
     printf("iteration init \n");
-    for (auto i = another.begin(); i != list.end(); ++i) {
+    for (auto i = another.begin(); i != another.end(); ++i) {
         i->hw();
     }
     printf("what about list?\n");
@@ -135,7 +135,35 @@ void nullList() {
         i->hw();
     }
 }
+void STLCompliant() {
+    auto list = XorLinkedList<int>({1,4,3,5});
+    for (auto i = list.begin(); i != list.end(); ++i) {
+        printf("%d\n",*i);
+    }
+    
+    std::reverse(list.begin(), list.end());
+    printf("-----reversed\n");
+    for (auto i = list.begin(); i != list.end(); ++i) {
+        printf("%d\n",*i);
+    }
+    
+    std::rotate(list.begin(),++++list.begin(), list.end());
+    printf("-----rotated\n");
+    for (auto i = list.begin(); i != list.end(); ++i) {
+        printf("%d\n",*i);
+    }
+    
+    auto findRes = std::find(list.begin(), list.end(), 5);
+    if (findRes) {
+        printf("finding 5, found %d\n",*findRes);
+    }
+    
+    printf("range_based for\n");
+    for (auto& i: list) {
+        printf("%d\n",i);
+    }
 
+}
 int main() {
     printf("-----\n");
     copyFromVector();
@@ -151,5 +179,7 @@ int main() {
     forwardAndBackward();
     printf("-----\n");
     nullList();
+    printf("-----\n");
+    STLCompliant();
     
 }
