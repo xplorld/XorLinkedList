@@ -26,11 +26,17 @@ private:
         uintptr_t xorptr;
         T value;
         
-        Node(T &&v);
-        Node(const T &v);
+        Node(T &&v)
+        noexcept(std::is_nothrow_move_constructible<T>::value)
+        ;
+        Node(const T &v)
+        noexcept(std::is_nothrow_constructible<T, const T &>::value)
+        ;
         
         template < typename inputIterator>
-        Node(const inputIterator v);
+        Node(const inputIterator v)
+        noexcept(std::is_nothrow_constructible<T, const inputIterator>::value)
+        ;
         
         Node* join(T &&v);
         Node* join(const T& v);
@@ -45,7 +51,7 @@ private:
         static std::pair<Node *, Node *> newList(std::move_iterator<inputIterator> begin,std::move_iterator<inputIterator> end);
 
         //do not declare as method, since `curr` may be nullptr
-        static Node *another(Node* curr, Node* one); //->another
+        static Node *another(Node* curr, Node* one) noexcept; //->another
         
         ~Node() ;
     };
@@ -97,18 +103,19 @@ public:
 #define PtrToInt(p) reinterpret_cast<uintptr_t>((void *)(p))
 #define IntToPtr(i) reinterpret_cast<Node *>((i))
 
-//template <typename T>
-//XorLinkedList<T>::Node::Node(const T *v) : xorptr(0),value(*v){}
 template <typename T>
 template <typename inputIterator>
-XorLinkedList<T>::Node::Node(const inputIterator v) : xorptr(0),value(*v){} //copy, not move
+XorLinkedList<T>::Node::Node(const inputIterator v) noexcept(std::is_nothrow_constructible<T, const inputIterator>::value)
+ : xorptr(0),value(*v){} //copy, not move
 
 
 template <typename T>
-XorLinkedList<T>::Node::Node(const T &v) : xorptr(0),value(v){} //copy
+XorLinkedList<T>::Node::Node(const T &v) noexcept(std::is_nothrow_constructible<T, const T &>::value)
+ : xorptr(0),value(v){} //copy
 
 template <typename T>
-XorLinkedList<T>::Node::Node(T &&v) : xorptr(0),value(std::move(v)){}
+XorLinkedList<T>::Node::Node(T &&v) noexcept(std::is_nothrow_move_constructible<T>::value)
+ : xorptr(0),value(std::move(v)){}
 
 template <typename T>
 template <typename inputIterator>
@@ -157,7 +164,7 @@ XorLinkedList<T>::Node::newList(std::move_iterator<inputIterator> begin,std::mov
 }
 
 template <typename T>
-typename XorLinkedList<T>::Node * XorLinkedList<T>::Node::another(Node*curr, Node* one) {
+typename XorLinkedList<T>::Node * XorLinkedList<T>::Node::another(Node*curr, Node* one) noexcept {
     if (curr == nullptr) {
         return nullptr;
     }
