@@ -3,11 +3,19 @@ A C++ Library that defines a templated XOR-Linked List.
 
 ### Overview
 
-This is a templeated Xor linked list library. You can generate and populate a list with STL iterators (for example `Vector::begin()` and `Vector::end()`), arrays, initializer lists, single element or nothing.
+- This is a templeated XOR-linked list library. You can generate and populate a list with :
+	- STL iterators (for example `Vector::begin()` and `Vector::end()`)
+	- STL containers (`Vector`, `List`, `Map`, `initializer_list`...)
+	- arrays
+	- single element
+	- or nothing.
 
-Provided `begin`, `end` that can increment and decrement.
+- Provided `begin/end`,`cbegin/cend`,`rbegin/rend`,`crbegin/crend`.
+- Inherited from `std::iterator`, so feel free to use `#include <algorithm>` or range-based for!
+- Full move semantics supported, try `vector::move
 
-If not used as parameters, please declare on stack not heap, to make RAII your friend!
+
+If not used as parameters, please declare on stack not heap, let RAII your friend!
 
 ### This Library
 
@@ -28,11 +36,12 @@ Good old double Linked list has 2 fields of address pointers, `prev` and `next`.
 
 ### ToDo
 
-- `size`?
 - remove?
 - new List of slice from `iterator` pair?
 
 ### Done
+
+- `size`
 - `rbegin` and `rend`
 - make `iterator` a real STL-compliant `std::iterator`
 - `operator==`

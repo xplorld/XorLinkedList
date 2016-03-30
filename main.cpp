@@ -183,7 +183,17 @@ void constIterators() {
     for (auto i = list.crbegin(); i != list.crend(); ++i) {
         i -> hw();
     }
+}
+
+void getSize() {
+    auto list = XorLinkedList<Shouter>({Shouter(0),Shouter(1),Shouter(2)});
+    printf("size %zu\n",list.size());
     
+    auto iter = list.cbegin();
+    for (int i = 0; i < list.size(); ++i) {
+        iter->hw();
+        ++iter;
+    }
 }
 
 int main() {
@@ -207,6 +217,7 @@ int main() {
     reverseIterators();
     printf("-----\n");
     constIterators();
-    auto list = XorLinkedList<int>();
+    printf("-----\n");
+    getSize();
     
 }

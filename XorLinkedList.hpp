@@ -60,10 +60,10 @@ private:
         node* join(const input_iterator v);
         
         template < typename input_iterator>
-        static std::pair<node *, node *> newList(input_iterator begin,input_iterator end);
+        static std::tuple<node *, node *,size_t> newList(input_iterator begin,input_iterator end);
         
         template < typename input_iterator>
-        static std::pair<node *, node *> newList(std::move_iterator<input_iterator> begin,std::move_iterator<input_iterator> end);
+        static std::tuple<node *, node *,size_t> newList(std::move_iterator<input_iterator> begin,std::move_iterator<input_iterator> end);
         
         //do not declare as method, since `curr` may be nullptr
         static node *another(node* curr, node* one) noexcept; //->another
@@ -73,17 +73,18 @@ private:
     
     //Wrapper so that List can put on the stack
     //and befriend RAII
-    node *head;
+    node *head = nullptr;
     //last `Node` that is not nullptr
-    node *tail;
+    node *tail = nullptr;
+    size_t _size = 0;
+    
     template <bool is_const = false>
     class _iterator
-    : public std::iterator <std::bidirectional_iterator_tag,T>
+    : public std::iterator <std::bidirectional_iterator_tag,typename std::conditional<is_const, const T, T>::type>
     {
         typedef typename std::conditional<is_const, const T, T>::type ReturnType;
         friend _iterator<true>;
         friend _iterator<false>;
-        
         //node is still non-const
         node *prev = nullptr;
         node *curr = nullptr;
@@ -109,7 +110,6 @@ private:
         bool operator == (const _iterator& rhs) const {return curr == rhs.curr && prev == rhs.prev;};
         bool operator != (const _iterator& rhs) const {return curr != rhs.curr || prev != rhs.prev;};
     };
-    
     
     
     template <bool is_const = false>
@@ -147,9 +147,9 @@ private:
 public:
 
     XorLinkedList() : head(nullptr), tail(nullptr) {};
-    XorLinkedList(const T* v) : head(new node(v)), tail(head) {};
-    XorLinkedList(const T& v) : head(new node(v)), tail(head) {};
-    XorLinkedList(T&& v) : head(new node(std::move(v))), tail(head) {};
+    XorLinkedList(const T* v) : head(new node(v)), tail(head), _size(1) {};
+    XorLinkedList(const T& v) : head(new node(v)), tail(head), _size(1) {};
+    XorLinkedList(T&& v) : head(new node(std::move(v))), tail(head), _size(1) {};
     XorLinkedList(std::initializer_list<T> array);
     
     template <typename Container, class = typename std::enable_if<is_container<Container>::value>::type>
@@ -166,6 +166,7 @@ public:
     //no need to delete tail, it will be deleted by Node deconstructer recursively
     ~XorLinkedList() {if (head) delete head;} ;
     
+    size_t size() {return _size;};
     iterator begin();
     iterator end();
     const_iterator cbegin() {return const_iterator(begin());};
@@ -176,57 +177,59 @@ public:
     const_reverse_iterator crend() {return const_reverse_iterator(rend());};
 };
 
-//template <typename T>
-//bool operator!=(typename XorLinkedList<T>::iterator &one, typename XorLinkedList<T>::iterator &another);
-
 #include <algorithm>
 #define PtrToInt(p) reinterpret_cast<uintptr_t>((void *)(p))
 #define IntToPtr(i) reinterpret_cast<node *>((i))
 
 template <typename T>
 template <typename input_iterator>
-typename std::pair< typename XorLinkedList<T>::node *, typename XorLinkedList<T>::node *>
+typename std::tuple< typename XorLinkedList<T>::node *, typename XorLinkedList<T>::node *, size_t>
 XorLinkedList<T>::node::newList(input_iterator begin,input_iterator end) {
     node *list = nullptr,*tail = nullptr;
+    size_t size = 0;
     try {
         assert(begin != end && "input feed is empty");
         list = new node(&*begin); //cast iter to pointer
         ++begin;
+        ++size;
         tail = list;
         while (begin != end){
             
             tail = tail->join(&*begin);
             ++begin;
+            ++size;
         }
     } catch(...) {
         delete list;
         throw;
     }
     
-    return std::make_pair(list, tail);
+    return std::make_tuple(list, tail,size);
 }
 
 template <typename T>
 template < typename input_iterator>
-typename std::pair< typename XorLinkedList<T>::node *, typename XorLinkedList<T>::node *>
+typename std::tuple< typename XorLinkedList<T>::node *, typename XorLinkedList<T>::node *, size_t>
 XorLinkedList<T>::node::newList(std::move_iterator<input_iterator> begin,std::move_iterator<input_iterator> end) {
     node *list = nullptr,*tail = nullptr;
+    size_t size = 0;
     try {
         assert(begin != end && "input feed is empty");
         list = new node(std::move(begin));
         ++begin;
+        ++size;
         tail = list;
         while (begin != end){
-            
             tail = tail->join(std::move(begin));
             ++begin;
+            ++size;
         }
     } catch(...) {
         delete list;
         throw;
     }
     
-    return std::make_pair(list, tail);
+    return std::make_tuple(list, tail,size);
 }
 
 template <typename T>
@@ -287,7 +290,6 @@ template <typename T>
 typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(T&& v) {
     //A->B, C.
     //B.p = A, C.p = 0
-    
     node *endNode = this;
     node *newNode = new node(std::move(v));
     endNode->xorptr = endNode->xorptr ^ PtrToInt((void *)newNode);
@@ -392,41 +394,47 @@ void  XorLinkedList<T>::template _reverse_iterator<is_const>::swap(XorLinkedList
 
 template <typename T>
 XorLinkedList<T>::XorLinkedList(std::initializer_list<T> array) {
-    auto pair = node::newList(array.begin(),array.end());
-    head = pair.first;
-    tail = pair.second;
+    auto tuple = node::newList(array.begin(),array.end());
+    head = std::get<0>(tuple);
+    tail = std::get<1>(tuple);
+    _size = std::get<2>(tuple);
 }
 
 template <typename T>
 template <typename Container,class>
 XorLinkedList<T>::XorLinkedList(Container& container) {
-    auto pair = node::newList(container.begin(),container.end());
-    head = pair.first;
-    tail = pair.second;
+    auto tuple = node::newList(container.begin(),container.end());
+    head = std::get<0>(tuple);
+    tail = std::get<1>(tuple);
+    _size = std::get<2>(tuple);
 }
 
 
 template <typename T>
 XorLinkedList<T>::XorLinkedList(T *array,size_t count) {
-    auto pair = node::newList(array,array+count);
-    head = pair.first;
-    tail = pair.second;
+    auto tuple = node::newList(array,array+count);
+    head = std::get<0>(tuple);
+    tail = std::get<1>(tuple);
+    _size = std::get<2>(tuple);
 }
 
 template <typename T>
 template <typename input_iterator>
 XorLinkedList<T>::XorLinkedList(input_iterator begin,input_iterator end) {
-    auto pair = node::newList(begin,end);
-    head = pair.first;
-    tail = pair.second;
+    auto tuple = node::newList(begin,end);
+    head = std::get<0>(tuple);
+    tail = std::get<1>(tuple);
+    _size = std::get<2>(tuple);
 }
 
 template <typename T>
 XorLinkedList<T>::XorLinkedList(XorLinkedList&& another) {
     head = another.head;
     tail = another.tail;
+    _size = another._size;
     another.head = nullptr;
     another.tail = nullptr;
+    another._size = 0;
 }
 
 template <typename T>
@@ -438,6 +446,7 @@ void XorLinkedList<T>::append(const T &v){
         head = new node(&v);
         tail = head;
     }
+    _size++;
 }
 
 template <typename T>
