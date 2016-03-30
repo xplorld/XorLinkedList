@@ -8,12 +8,13 @@
 #include "XorLinkedList.hpp"
 #include <cstdio>
 #include <vector>
+#include <type_traits>
 #include <algorithm>
 
 class Shouter {
 public:
     int i;
-    void hw() {
+    void hw() const {
         printf("hello,world,I am %d!\n",i);
     }
     ~Shouter() {
@@ -162,7 +163,13 @@ void STLCompliant() {
     for (auto& i: list) {
         printf("%d\n",i);
     }
+}
 
+void reverseIterators() {
+    auto list = XorLinkedList<int>({4,6,7,8,9});
+    for (auto i = list.rbegin(); i != list.rend(); ++i) {
+        printf("%d\n",*i);
+    }
 }
 int main() {
     printf("-----\n");
@@ -181,5 +188,7 @@ int main() {
     nullList();
     printf("-----\n");
     STLCompliant();
+    printf("-----\n");
+    reverseIterators();
     
 }
