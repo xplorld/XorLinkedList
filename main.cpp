@@ -17,6 +17,8 @@ public:
     void hw() const {
         printf("hello,world,I am %d!\n",i);
     }
+    void setI(int i) {this->i = i;};
+    
     ~Shouter() {
         printf("I died,     I am %d!\n",i);
     }
@@ -171,24 +173,37 @@ void reverseIterators() {
         printf("%d\n",*i);
     }
 }
-int main() {
-    printf("-----\n");
-    copyFromVector();
-    printf("-----\n");
-    copyFromArray();
-    printf("-----\n");
-    copyFromInitializerList();
-    printf("-----\n");
-    moveFromArray();
-    printf("-----\n");
-    moveSelf();
-    printf("-----\n");
-    forwardAndBackward();
-    printf("-----\n");
-    nullList();
-    printf("-----\n");
-    STLCompliant();
-    printf("-----\n");
-    reverseIterators();
+
+void constIterators() {
+    auto list = XorLinkedList<Shouter>({Shouter(0),Shouter(1),Shouter(2)});
+    for (auto i = list.cbegin(); i != list.cend(); ++i) {
+        i->hw();
+    }
+    printf("c/cr\n");
+    for (auto i = list.crbegin(); i != list.crend(); ++i) {
+        i -> hw();
+    }
     
+}
+int main() {
+//    printf("-----\n");
+//    copyFromVector();
+//    printf("-----\n");
+//    copyFromArray();
+//    printf("-----\n");
+//    copyFromInitializerList();
+//    printf("-----\n");
+//    moveFromArray();
+//    printf("-----\n");
+//    moveSelf();
+//    printf("-----\n");
+//    forwardAndBackward();
+//    printf("-----\n");
+//    nullList();
+//    printf("-----\n");
+//    STLCompliant();
+//    printf("-----\n");
+//    reverseIterators();
+//    printf("-----\n");
+    constIterators();
 }

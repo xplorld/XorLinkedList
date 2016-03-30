@@ -17,30 +17,41 @@
 
 template <typename T>
 class XorLinkedList {
-public:
-    class iterator;
 private:
-
+    template <bool is_const>
+    class _iterator;
+   
+    template <bool is_const>
+    class _reverse_iterator;
+public:
+    
+    typedef _iterator<false> iterator;
+    typedef _iterator<true> const_iterator;
+    
+    
+    typedef _reverse_iterator<false> reverse_iterator;
+    typedef _reverse_iterator<true> const_reverse_iterator;
+private:
+    
     class node {
         friend XorLinkedList;
         friend iterator;
-
+        
         uintptr_t xorptr;
         T value;
         
         node(T &&v)
         noexcept(std::is_nothrow_move_constructible<T>::value)
-        ;
+        : xorptr(0),value(std::move(v)){};
+        
         node(const T &v)
         noexcept(std::is_nothrow_constructible<T, const T &>::value)
-        ;
+        : xorptr(0),value(v){}; //copy
         
         template < typename input_iterator>
         node(const input_iterator v)
         noexcept(std::is_nothrow_constructible<T, const input_iterator>::value)
-        ;
-
-        // Node(typename XorLinkedList<typename std::remove_const<T>::type>::Node nonConstNode) noexcept : xorptr(0), value(nonConstNode.value) {};
+        : xorptr(0),value(*v){}; //copy, not move
         
         node* join(T &&v);
         node* join(const T& v);
@@ -65,65 +76,80 @@ private:
     node *head;
     //last `Node` that is not nullptr
     node *tail;
-public:
-    class iterator
+    template <bool is_const = false>
+    class _iterator
     : public std::iterator <std::bidirectional_iterator_tag,T>
     {
+        typedef typename std::conditional<is_const, const T, T>::type ReturnType;
+        friend _iterator<true>;
+        friend _iterator<false>;
         
+        //node is still non-const
         node *prev = nullptr;
         node *curr = nullptr;
     public:
-        iterator(node *prev, node *curr) : prev(prev),curr(curr) {};
-        iterator(const iterator &copyFrom)  : prev(copyFrom.prev),curr(copyFrom.curr) {};
+        _iterator(node *prev, node *curr) : prev(prev),curr(curr) {};
+        //only allow non-const to const
+        _iterator(const _iterator<false> &copyFrom)  : prev(copyFrom.prev),curr(copyFrom.curr) {};
         
-        T &operator*()
+        
+        ReturnType &operator*()
         {assert(curr != nullptr && "dereference iterator!"); return  curr->value; };
-        T *operator->() {return &*(*this);};
-        iterator &operator++() noexcept ;      //++i
-        iterator operator++ ( int ) noexcept;  //i++
-        iterator &operator--() noexcept ;      //--i
-        iterator operator-- ( int ) noexcept;  //i--
+        ReturnType *operator->() {return &*(*this);};
         
-        void swap(iterator & other) noexcept;
+        
+        _iterator &operator++() noexcept ;      //++i
+        _iterator operator++ ( int ) noexcept;  //i++
+        _iterator &operator--() noexcept ;      //--i
+        _iterator operator-- ( int ) noexcept;  //i--
+        
+        void swap(_iterator & other) noexcept;
         
         explicit operator bool() const noexcept {return prev == nullptr && curr == nullptr;}
-        bool operator == (const iterator& rhs) const {return curr == rhs.curr && prev == rhs.prev;};
-        bool operator != (const iterator& rhs) const {return curr != rhs.curr || prev != rhs.prev;};
+        bool operator == (const _iterator& rhs) const {return curr == rhs.curr && prev == rhs.prev;};
+        bool operator != (const _iterator& rhs) const {return curr != rhs.curr || prev != rhs.prev;};
     };
     
-    class reverse_iterator
+    
+    
+    template <bool is_const = false>
+    class _reverse_iterator
     : public std::iterator <std::bidirectional_iterator_tag,T>
     {
+        
+        typedef typename std::conditional<is_const, const T, T>::type ReturnType;
+        friend _reverse_iterator<true>;
+        friend _reverse_iterator<false>;
+        
         node *curr = nullptr;
         node *next = nullptr;
     public:
-        reverse_iterator(node *curr,node *next) : curr(curr), next(next) {};
-        reverse_iterator(const reverse_iterator &copyFrom)  : curr(copyFrom.curr), next(copyFrom.next) {};
-        //to const
-        operator typename XorLinkedList<const T>::reverse_iterator() const { return XorLinkedList<const T>::reverse_iterator(curr,next); }
+        _reverse_iterator(node *curr,node *next) : curr(curr), next(next) {};
         
         
-        T &operator*()
-        {assert(curr != nullptr && "dereference iterator!"); return  curr->value; };
-        T *operator->() {return &*(*this);};
-        reverse_iterator &operator++() noexcept ;      //++i
-        reverse_iterator operator++ ( int ) noexcept;  //i++
-        reverse_iterator &operator--() noexcept ;      //--i
-        reverse_iterator operator-- ( int ) noexcept;  //i--
+        _reverse_iterator(const _reverse_iterator<false> &copyFrom)  : curr(copyFrom.curr), next(copyFrom.next) {};
         
-        void swap(reverse_iterator & other) noexcept;
+        
+        ReturnType &operator*() {assert(curr != nullptr && "dereference iterator!"); return  curr->value; };
+        ReturnType *operator->() {return &*(*this);};
+        
+        _reverse_iterator &operator++() noexcept ;      //++i
+        _reverse_iterator operator++ ( int ) noexcept;  //i++
+        _reverse_iterator &operator--() noexcept ;      //--i
+        _reverse_iterator operator-- ( int ) noexcept;  //i--
+        
+        void swap(_reverse_iterator & other) noexcept;
         
         explicit operator bool() const noexcept {return next == nullptr && curr == nullptr;}
-        bool operator == (const reverse_iterator& rhs) const {return curr == rhs.curr && next == rhs.next;};
-        bool operator != (const reverse_iterator& rhs) const {return curr != rhs.curr || next != rhs.next;};
+        bool operator == (const _reverse_iterator& rhs) const {return curr == rhs.curr && next == rhs.next;};
+        bool operator != (const _reverse_iterator& rhs) const {return curr != rhs.curr || next != rhs.next;};
     };
-    
-    
+public:
 
-    XorLinkedList();
-    XorLinkedList(const T* v) ;
-    XorLinkedList(const T& v) ;
-    XorLinkedList(T&& v) ;
+    XorLinkedList() : head(nullptr), tail(nullptr) {};
+    XorLinkedList(const T* v) : head(new node(v)), tail(head) {};
+    XorLinkedList(const T& v) : head(new node(v)), tail(head) {};
+    XorLinkedList(T&& v) : head(new node(std::move(v))), tail(head) {};
     XorLinkedList(std::initializer_list<T> array);
     XorLinkedList(T *array,size_t count);
     template < typename input_iterator>
@@ -133,12 +159,17 @@ public:
     
     void append(const T &v);
     
-    ~XorLinkedList() ;
+    //no need to delete tail, it will be deleted by Node deconstructer recursively
+    ~XorLinkedList() {if (head) delete head;} ;
     
     iterator begin();
     iterator end();
+    const_iterator cbegin() {return const_iterator(begin());};
+    const_iterator cend() {return const_iterator(end());};
     reverse_iterator rbegin();
     reverse_iterator rend();
+    const_reverse_iterator crbegin() {return const_reverse_iterator(rbegin());};
+    const_reverse_iterator crend() {return const_reverse_iterator(rend());};
 };
 
 //template <typename T>
@@ -147,20 +178,6 @@ public:
 #include <algorithm>
 #define PtrToInt(p) reinterpret_cast<uintptr_t>((void *)(p))
 #define IntToPtr(i) reinterpret_cast<node *>((i))
-
-template <typename T>
-template <typename input_iterator>
-XorLinkedList<T>::node::node(const input_iterator v) noexcept(std::is_nothrow_constructible<T, const input_iterator>::value)
-: xorptr(0),value(*v){} //copy, not move
-
-
-template <typename T>
-XorLinkedList<T>::node::node(const T &v) noexcept(std::is_nothrow_constructible<T, const T &>::value)
-: xorptr(0),value(v){} //copy
-
-template <typename T>
-XorLinkedList<T>::node::node(T &&v) noexcept(std::is_nothrow_move_constructible<T>::value)
-: xorptr(0),value(std::move(v)){}
 
 template <typename T>
 template <typename input_iterator>
@@ -281,7 +298,8 @@ typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(T&& v) {
 
 
 template <typename T>
-typename XorLinkedList<T>::iterator & XorLinkedList<T>::iterator::operator++() noexcept{
+template <bool is_const>
+typename XorLinkedList<T>::template _iterator<is_const> & XorLinkedList<T>::_iterator<is_const>::operator++() noexcept{
     node *nextNode = node::another(curr,prev);
     prev = curr;
     curr = nextNode;
@@ -289,15 +307,16 @@ typename XorLinkedList<T>::iterator & XorLinkedList<T>::iterator::operator++() n
 }
 
 template <typename T>
-typename XorLinkedList<T>::iterator  XorLinkedList<T>::iterator::operator++ ( int ) noexcept
-{
-    iterator nowIter = iterator(prev,curr);
+template <bool is_const>
+typename XorLinkedList<T>::template _iterator<is_const> XorLinkedList<T>::_iterator<is_const>::operator++( int ) noexcept{
+    _iterator nowIter = _iterator(prev,curr);
     ++(*this);
     return nowIter;
 }
 
 template <typename T>
-typename XorLinkedList<T>::iterator & XorLinkedList<T>::iterator::operator--() noexcept {
+template <bool is_const>
+typename XorLinkedList<T>::template _iterator<is_const> & XorLinkedList<T>::_iterator<is_const>::operator--() noexcept {
     node *prevNode = node::another(prev,curr);
     curr = prev;
     prev = prevNode;
@@ -305,23 +324,26 @@ typename XorLinkedList<T>::iterator & XorLinkedList<T>::iterator::operator--() n
 }
 
 template <typename T>
-typename XorLinkedList<T>::iterator  XorLinkedList<T>::iterator::operator-- ( int ) noexcept
+template <bool is_const>
+typename XorLinkedList<T>::template _iterator<is_const> XorLinkedList<T>::_iterator<is_const>::operator-- ( int ) noexcept
 {
-    iterator nowIter = iterator(prev,curr);
+    _iterator nowIter = _iterator(prev,curr);
     --(*this);
     return nowIter;
 }
 
 
 template <typename T>
-void  XorLinkedList<T>::iterator::swap(XorLinkedList::iterator &other) noexcept {
+template <bool is_const>
+void  XorLinkedList<T>::_iterator<is_const>::swap(XorLinkedList<T>::_iterator<is_const> &other) noexcept {
     using std::swap;
     swap(prev, other.prev);
     swap(curr, other.curr);
 }
 
 template <typename T>
-typename XorLinkedList<T>::reverse_iterator & XorLinkedList<T>::reverse_iterator::operator++() noexcept{
+template <bool is_const>
+typename XorLinkedList<T>::template _reverse_iterator<is_const> & XorLinkedList<T>::_reverse_iterator<is_const>::operator++() noexcept{
     node *prevNode = node::another(curr,next);
     next = curr;
     curr = prevNode;
@@ -329,15 +351,17 @@ typename XorLinkedList<T>::reverse_iterator & XorLinkedList<T>::reverse_iterator
 }
 
 template <typename T>
-typename XorLinkedList<T>::reverse_iterator  XorLinkedList<T>::reverse_iterator::operator++ ( int ) noexcept
+template <bool is_const>
+typename XorLinkedList<T>::template _reverse_iterator<is_const>  XorLinkedList<T>::_reverse_iterator<is_const>::operator++ ( int ) noexcept
 {
-    reverse_iterator nowIter = reverse_iterator(curr,next);
+    _reverse_iterator<is_const> nowIter = _reverse_iterator<is_const>(curr,next);
     ++(*this);
     return nowIter;
 }
 
 template <typename T>
-typename XorLinkedList<T>::reverse_iterator & XorLinkedList<T>::reverse_iterator::operator--() noexcept {
+template <bool is_const>
+typename XorLinkedList<T>::template _reverse_iterator<is_const> & XorLinkedList<T>::_reverse_iterator<is_const>::operator--() noexcept {
     node *nextNode = node::another(next,curr);
     curr = next;
     next = nextNode;
@@ -345,32 +369,21 @@ typename XorLinkedList<T>::reverse_iterator & XorLinkedList<T>::reverse_iterator
 }
 
 template <typename T>
-typename XorLinkedList<T>::reverse_iterator  XorLinkedList<T>::reverse_iterator::operator-- ( int ) noexcept
+template <bool is_const>
+typename XorLinkedList<T>::template _reverse_iterator<is_const>  XorLinkedList<T>::_reverse_iterator<is_const>::operator-- ( int ) noexcept
 {
-    reverse_iterator nowIter = reverse_iterator(curr,next);
+    _reverse_iterator<is_const> nowIter = _reverse_iterator<is_const>(curr,next);
     --(*this);
     return nowIter;
 }
 
 template <typename T>
-void  XorLinkedList<T>::reverse_iterator::swap(XorLinkedList::reverse_iterator &other) noexcept {
+template <bool is_const>
+void  XorLinkedList<T>::template _reverse_iterator<is_const>::swap(XorLinkedList::_reverse_iterator<is_const> &other) noexcept {
     using std::swap;
     swap(next, other.next);
     swap(curr, other.curr);
 }
-
-template <typename T>
-XorLinkedList<T>::XorLinkedList() : head(nullptr), tail(nullptr) {}
-
-
-template <typename T>
-XorLinkedList<T>::XorLinkedList(const T& v) : head(new node(v)), tail(head) {}
-
-template <typename T>
-XorLinkedList<T>::XorLinkedList(T &&v) : head(new node(std::move(v))), tail(head) {}
-
-template <typename T>
-XorLinkedList<T>::XorLinkedList(const T *v) : head(new node(v)), tail(head) {}
 
 
 template <typename T>
@@ -393,12 +406,6 @@ XorLinkedList<T>::XorLinkedList(input_iterator begin,input_iterator end) {
     auto pair = node::newList(begin,end);
     head = pair.first;
     tail = pair.second;
-}
-
-template <typename T>
-XorLinkedList<T>::~XorLinkedList() {
-    if (head) delete head;
-    //no need to delete tail, it will be deleted by Node deconstructer recursively
 }
 
 template <typename T>
@@ -437,6 +444,7 @@ typename XorLinkedList<T>::reverse_iterator XorLinkedList<T>::rbegin() {
     if (tail) return reverse_iterator(tail, nullptr);
     return reverse_iterator(nullptr,nullptr);
 }
+
 
 template <typename T>
 typename XorLinkedList<T>::reverse_iterator XorLinkedList<T>::rend() {
