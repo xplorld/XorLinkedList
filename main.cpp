@@ -185,25 +185,28 @@ void constIterators() {
     }
     
 }
+
 int main() {
-//    printf("-----\n");
-//    copyFromVector();
-//    printf("-----\n");
-//    copyFromArray();
-//    printf("-----\n");
-//    copyFromInitializerList();
-//    printf("-----\n");
-//    moveFromArray();
-//    printf("-----\n");
-//    moveSelf();
-//    printf("-----\n");
-//    forwardAndBackward();
-//    printf("-----\n");
-//    nullList();
-//    printf("-----\n");
-//    STLCompliant();
-//    printf("-----\n");
-//    reverseIterators();
-//    printf("-----\n");
+    printf("-----\n");
+    copyFromVector();
+    printf("-----\n");
+    copyFromArray();
+    printf("-----\n");
+    copyFromInitializerList();
+    printf("-----\n");
+    moveFromArray();
+    printf("-----\n");
+    moveSelf();
+    printf("-----\n");
+    forwardAndBackward();
+    printf("-----\n");
+    nullList();
+    printf("-----\n");
+    STLCompliant();
+    printf("-----\n");
+    reverseIterators();
+    printf("-----\n");
     constIterators();
+    auto list = XorLinkedList<int>();
+    
 }

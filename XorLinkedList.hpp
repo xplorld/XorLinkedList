@@ -13,7 +13,7 @@
 #include <iterator>
 #include <cstdint>
 #include <cassert>
-#include <initializer_list>
+#include "is_container_SFINAE.h"
 
 template <typename T>
 class XorLinkedList {
@@ -151,6 +151,10 @@ public:
     XorLinkedList(const T& v) : head(new node(v)), tail(head) {};
     XorLinkedList(T&& v) : head(new node(std::move(v))), tail(head) {};
     XorLinkedList(std::initializer_list<T> array);
+    
+    template <typename Container, class = typename std::enable_if<is_container<Container>::value>::type>
+    XorLinkedList(Container& container);
+    
     XorLinkedList(T *array,size_t count);
     template < typename input_iterator>
     XorLinkedList(input_iterator begin,input_iterator end);
@@ -392,6 +396,15 @@ XorLinkedList<T>::XorLinkedList(std::initializer_list<T> array) {
     head = pair.first;
     tail = pair.second;
 }
+
+template <typename T>
+template <typename Container,class>
+XorLinkedList<T>::XorLinkedList(Container& container) {
+    auto pair = node::newList(container.begin(),container.end());
+    head = pair.first;
+    tail = pair.second;
+}
+
 
 template <typename T>
 XorLinkedList<T>::XorLinkedList(T *array,size_t count) {
