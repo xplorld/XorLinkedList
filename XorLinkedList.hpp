@@ -13,6 +13,7 @@
 #include <iterator>
 #include <cstdint>
 #include <cassert>
+#include <tuple>
 #include "is_container_SFINAE.h"
 
 template <typename T>
