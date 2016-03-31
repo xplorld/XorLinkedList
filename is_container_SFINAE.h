@@ -2,6 +2,11 @@
 
 #include <utility>
 
+#ifdef _MSC_VER
+    #define XL_TYPENAME
+#else
+    #define XL_TYPENAME typename
+#endif
 
 template<typename T>
 struct has_const_iterator
@@ -21,8 +26,8 @@ template <typename T>
 struct has_begin_end
 {
   struct Dummy { typedef void const_iterator; };
-  typedef typename std::conditional<has_const_iterator<T>::value, T, Dummy>::type TType;
-  typedef typename TType::const_iterator iter;
+  typedef XL_TYPENAME std::conditional<has_const_iterator<T>::value, T, Dummy>::type TType;
+  typedef XL_TYPENAME TType::const_iterator iter;
 
   struct Fallback { iter begin() const; iter end() const; };
   struct Derived : TType, Fallback { };
@@ -44,3 +49,4 @@ struct is_container
   static const bool value = has_const_iterator<T>::value &&
     has_begin_end<T>::beg_value && has_begin_end<T>::end_value;
 };
+#undef XL_TYPENAME
