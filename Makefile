@@ -5,7 +5,7 @@ ifndef CXX
 CXX = clang++
 endif
 
-CXX11 = $(CXX) -pedantic $(CPP_FLAG) -std=c++11 -Wall -Wextra
+CXX11 = $(CXX) -pedantic -std=c++11 -Wall -Wextra
 
 clean:
 	rm -rf main
