@@ -1,17 +1,11 @@
 all: clean main
 	./main
 	
-# ifndef CXX
+ifndef CXX
 CXX = clang++
-# endif
-
-ifeq ($(CXX),clang++)
-	LIB_CPP_FLAG = -lc++
-else
-	LIB_CPP_FLAG = -lstdc++
 endif
 
-CXX11 = $(CXX) -pedantic $(LIB_CPP_FLAG) -std=c++11 -Wall -Wextra
+CXX11 = $(CXX) -pedantic $(CPP_FLAG) -std=c++11 -Wall -Wextra
 
 clean:
 	rm -rf main
