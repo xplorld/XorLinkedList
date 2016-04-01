@@ -1,6 +1,7 @@
 # XorLinkedList
 A C++ Library that defines a templated XOR-Linked List.
-![travis ci](https://travis-ci.org/xplorld/XorLinkedList.svg?branch=master)
+
+[![Build Status](https://travis-ci.org/xplorld/XorLinkedList.svg?branch=master)](https://travis-ci.org/xplorld/XorLinkedList)
 ### Overview
 
 - This is a templeated XOR-linked list library. You can generate and populate a list with :
