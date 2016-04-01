@@ -10,6 +10,7 @@
 #include <vector>
 #include <list>
 #include <deque>
+#include <typeinfo>
 #include <algorithm>
 
 class Shouter {

@@ -1,8 +1,13 @@
-all: main
+all: clean main
 	./main
 	
+ifndef CXX
+CXX = clang++
+endif
 
-CLANG = clang++ -std=c++11 -Wall -Wextra
+CXX11 = $(CXX) -pedantic -std=c++11 -Wall -Wextra
 
+clean:
+	rm -rf main
 main: XorLinkedList.hpp main.cpp
-	$(CLANG) main.cpp -o main
+	$(CXX11) main.cpp -o main
