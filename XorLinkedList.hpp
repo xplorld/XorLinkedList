@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <cassert>
 #include <tuple>
+#include <type_traits>
 #include "is_container_SFINAE.h"
 
 template <typename T>
