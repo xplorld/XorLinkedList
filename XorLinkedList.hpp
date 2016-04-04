@@ -94,11 +94,9 @@ private:
         //only allow non-const to const
         iterator_(const iterator_<false> &copyFrom)  : prev(copyFrom.prev),curr(copyFrom.curr) {}
         
-        
         typename iterator_::reference operator*()
-        {assert(curr != nullptr && "dereference iterator!"); return  curr->value; }
-        typename iterator_::pointer operator->() {return &*(*this);}
-        
+        {assert(curr != nullptr && "dereference null iterator!"); return  curr->value; }
+        typename iterator_::pointer operator->() {return std::addressof(operator*());}
         
         iterator_ &operator++() noexcept ;      //++i
         iterator_ operator++ ( int ) noexcept;  //i++
@@ -111,7 +109,6 @@ private:
         bool operator == (const iterator_& rhs) const {return curr == rhs.curr && prev == rhs.prev;}
         bool operator != (const iterator_& rhs) const {return curr != rhs.curr || prev != rhs.prev;}
     };
-    
     
     template<bool is_const = false>
         class reverse_iterator_ :
@@ -161,9 +158,9 @@ public:
     
     //no need to delete tail, it will be deleted by Node deconstructer recursively
     //head is nullptr if empty; OK to delete
-    ~XorLinkedList() {delete head;}
+    ~XorLinkedList()                        {delete head;}
     
-    size_t size() {return size_;}
+    size_t size()                           {return size_;}
     iterator begin()                        { return iterator(nullptr, head);}
     iterator end()                          { return iterator(tail, nullptr);}
     const_iterator cbegin() const           { return const_iterator(nullptr, head);}
@@ -174,8 +171,6 @@ public:
     const_reverse_iterator crend() const    { return const_reverse_iterator(nullptr, head);}
 };
 
-
-#include <algorithm>
 #define PtrToInt(p) reinterpret_cast<uintptr_t>((void *)(p))
 #define IntToPtr(i) reinterpret_cast<node *>((i))
 
@@ -187,13 +182,13 @@ XorLinkedList<T>::node::newList(input_iterator begin,input_iterator end) {
     size_t size = 0;
     try {
         assert(begin != end && "input feed is empty");
-        list = new node(&*begin); //cast iter to pointer
+        list = new node(std::addressof(*begin)); //cast iter to pointer
         ++begin;
         ++size;
         tail = list;
         while (begin != end){
             
-            tail = tail->join(&*begin);
+            tail = tail->join(std::addressof(*begin));
             ++begin;
             ++size;
         }
@@ -283,7 +278,6 @@ typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(const input_itera
     return newNode;
 }
 
-
 template <typename T>
 typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(T&& v) {
     //A->B, C.
@@ -300,7 +294,6 @@ typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(T&& v) {
 #undef PtrToInt
 #undef IntToPtr
 
-
 template <typename T>
 template <bool is_const>
 typename XorLinkedList<T>::template iterator_<is_const> & XorLinkedList<T>::iterator_<is_const>::operator++() noexcept{
@@ -314,7 +307,7 @@ template <typename T>
 template <bool is_const>
 typename XorLinkedList<T>::template iterator_<is_const> XorLinkedList<T>::iterator_<is_const>::operator++( int ) noexcept{
     iterator_ nowIter = iterator_(prev,curr);
-    ++(*this);
+    operator++();
     return nowIter;
 }
 
@@ -332,10 +325,9 @@ template <bool is_const>
 typename XorLinkedList<T>::template iterator_<is_const> XorLinkedList<T>::iterator_<is_const>::operator-- ( int ) noexcept
 {
     iterator_ nowIter = iterator_(prev,curr);
-    --(*this);
+    operator--();
     return nowIter;
 }
-
 
 template <typename T>
 template <bool is_const>
@@ -344,7 +336,6 @@ void  XorLinkedList<T>::iterator_<is_const>::swap(XorLinkedList<T>::iterator_<is
     swap(prev, other.prev);
     swap(curr, other.curr);
 }
-
 
 template <typename T>
 template <typename input_iterator>
@@ -368,10 +359,10 @@ XorLinkedList<T>::XorLinkedList(XorLinkedList&& another) {
 template <typename T>
 void XorLinkedList<T>::append(const T &v){
     if (tail) {
-        tail = tail->join(&v);
+        tail = tail->join(std::addressof(v));
     } else {
         //empty linked list
-        head = new node(&v);
+        head = new node(std::addressof(v));
         tail = head;
     }
     size_++;
