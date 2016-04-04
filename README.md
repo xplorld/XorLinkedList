@@ -1,6 +1,7 @@
 # XorLinkedList
 A C++ Library that defines a templated XOR-Linked List.
 
+[![Build Status](https://travis-ci.org/xplorld/XorLinkedList.svg?branch=master)](https://travis-ci.org/xplorld/XorLinkedList)
 ### Overview
 
 - This is a templeated XOR-linked list library. You can generate and populate a list with :
@@ -12,7 +13,7 @@ A C++ Library that defines a templated XOR-Linked List.
 
 - Provided `begin/end`,`cbegin/cend`,`rbegin/rend`,`crbegin/crend`.
 - Inherited from `std::iterator`, so feel free to use `#include <algorithm>` or range-based for!
-- Full move semantics supported, try `vector::move
+- Full move semantics supported, try `std::move`
 
 
 If not used as parameters, please declare on stack not heap, let RAII your friend!
@@ -38,6 +39,7 @@ Good old double Linked list has 2 fields of address pointers, `prev` and `next`.
 
 - remove?
 - new List of slice from `iterator` pair?
+- join of list?
 
 ### Done
 

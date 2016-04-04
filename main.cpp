@@ -8,7 +8,9 @@
 #include "XorLinkedList.hpp"
 #include <cstdio>
 #include <vector>
-#include <type_traits>
+#include <list>
+#include <deque>
+#include <typeinfo>
 #include <algorithm>
 
 class Shouter {
@@ -37,187 +39,146 @@ public:
     }
 };
 
-void copyFromVector() {
-    printf("vector init\n");
-    auto vector = std::vector<Shouter>({Shouter(0),Shouter(1),Shouter(2)});
-    printf("XorLinkedList init \n");
-    auto list = XorLinkedList<Shouter>(std::begin(vector),std::end(vector));
-    printf("iteration init \n");
-    for (auto i = list.begin(); i != list.end(); ++i) {
-        i->hw();
+
+template <typename container>
+void initWithContainer() {
+    printf("initWithContainer of %s begin\n",typeid(container).name());
+    
+    auto cont = container({Shouter(0),Shouter(1),Shouter(2)});
+    auto list_l = XorLinkedList<Shouter>(cont);
+    printf("I am from lvalue %s\n",typeid(container).name());
+    for (auto &i: list_l) {
+        i.hw();
     }
-    printf("RAII is your friend!\n");
+    
+    auto list_r = XorLinkedList<Shouter>(container({Shouter(0),Shouter(1),Shouter(2)}));
+    printf("I am from rvalue %s\n",typeid(container).name());
+    for (auto &i: list_l) {
+        i.hw();
+    }
+    printf("initWithContainer of %s end\n",typeid(container).name());
 }
-void copyFromInitializerList() {
-    printf("XorLinkedList init \n");
+void initWithContainers() {
+    printf("initWithContainers test begin\n");
+    
+    initWithContainer<std::vector<Shouter>>();
+    initWithContainer<std::list<Shouter>>();
+    initWithContainer<std::deque<Shouter>>();
+    initWithContainer<std::initializer_list<Shouter>>();
+    
+    printf("initWithContainers test end\n");
+}
+
+template <typename container>
+void initWithIterator() {
+    
+    printf("initWithIterator of %s begin\n",typeid(container).name());
+    auto cont = container({Shouter(0),Shouter(1),Shouter(2)});
+    auto list_iter = XorLinkedList<Shouter>(cont.begin(),cont.end());
+    printf("I am from begin/end %s\n",typeid(container).name());
+    for (auto &i: list_iter) {
+        i.hw();
+    }
+    printf("initWithIterator of %s end\n",typeid(container).name());
+}
+
+void initWithIterators() {
+    printf("initWithIterators test begin\n");
+    
+    initWithIterator<std::vector<Shouter>>();
+    initWithIterator<std::list<Shouter>>();
+    initWithIterator<std::deque<Shouter>>();
+    initWithIterator<std::initializer_list<Shouter>>();
+    
+    Shouter arr[3] = {Shouter(0),Shouter(1),Shouter(2)};
+    auto list_arr = XorLinkedList<Shouter>(arr,3);
+    auto list_arr_p = XorLinkedList<Shouter>(arr,arr+3);
+    
+    printf("initWithIterators test end\n");
+}
+
+void initWithSingleElement() {
+    
+    printf("initWithSingleElement test begin\n");
+    
+    auto from_rvalue = XorLinkedList<Shouter>(Shouter(1));
+    auto s = Shouter(2);
+    auto from_lvalue_ref = XorLinkedList<Shouter>(s);
+    auto from_lvalue_p = XorLinkedList<Shouter>(&s);
+    auto from_void = XorLinkedList<Shouter>();
+    
+    printf("initWithSingleElement test end\n");
+}
+
+void copyAndMove() {
+    printf("copyAndMove test begin\n");
+    
+    auto list_original = XorLinkedList<Shouter>({Shouter(0),Shouter(1),Shouter(2)});
+    auto list_copied = XorLinkedList<Shouter>(list_original);
+    auto list_moved = XorLinkedList<Shouter>(std::move(list_original));
+    printf("original list:(should be empty)\n");
+    assert(list_original.size() == 0 && "moved list not empty\n");
+    for (auto &i : list_original) {
+        i.hw();
+    }
+    printf("copied list:\n");
+    for (auto &i : list_copied) {
+        i.hw();
+    }
+    printf("moved list:\n");
+    for (auto &i : list_moved) {
+        i.hw();
+    }
+    
+    printf("copyAndMove test end\n");
+}
+
+void appendAndJoin() {
+    printf("appendAndJoin test begin\n");
+    auto list_1 = XorLinkedList<Shouter>({Shouter(0),Shouter(1),Shouter(2)});
+    auto size_1 = list_1.size();
+    auto list_2 = XorLinkedList<Shouter>({Shouter(3),Shouter(4),Shouter(5)});
+    for (auto &i: list_2) {
+        list_1.append(i);
+    }
+    assert(list_1.size() == size_1 + list_2.size() && "append size mismatch");
+    for (auto &i : list_2) {
+        i.hw();
+    }
+    
+    //TODO: join has not been implemented
+    //list_1.join(list_2);
+    //list_1.join(std::move(list_2));
+    printf("appendAndJoin test end\n");
+}
+
+void iterators() {
+    printf("iterators test begin\n");
     auto list = XorLinkedList<Shouter>({Shouter(0),Shouter(1),Shouter(2)});
-    printf("iteration init \n");
     for (auto i = list.begin(); i != list.end(); ++i) {
-        i->hw();
+        //iterator is mutable
+        i->setI(i->i + 2);
     }
-    printf("RAII is your friend!\n");
-}
-
-void copyFromArray() {
-    Shouter arr[3] = {Shouter(0),Shouter(1),Shouter(2)};
-    auto list = XorLinkedList<Shouter>(arr,3);
-    printf("iteration init \n");
-    for (auto i = list.begin(); i != list.end(); ++i) {
-        i->hw();
-    }
-    printf("RAII is your friend!\n");
-}
-
-void moveFromArray() {
-    Shouter arr[3] = {Shouter(0),Shouter(1),Shouter(2)};
-    auto list = XorLinkedList<Shouter>(
-                                       std::make_move_iterator(arr),
-                                       std::make_move_iterator(arr+3)
-                                       );
-    printf("iteration init \n");
-    auto i = list.begin();
-    for (; i != list.end(); ++i) {
-        i->hw();
-    }
-    for (--i; i != --list.begin(); --i) {
-        i->hw();
-    }
-    printf("RAII is your friend!\n");
-}
-
-void moveSelf() {
-    Shouter arr[3] = {Shouter(0),Shouter(1),Shouter(2)};
-    auto list = XorLinkedList<Shouter>(
-                                       std::make_move_iterator(arr),
-                                       std::make_move_iterator(arr+3)
-                                       );
-    auto another = std::move(list);
-    printf("iteration init \n");
-    for (auto i = another.begin(); i != another.end(); ++i) {
-        i->hw();
-    }
-    printf("what about list?\n");
-    for (auto i = list.begin(); i != list.end(); ++i) {
-        i->hw();
-    }
-    printf("RAII is your friend!\n");
-}
-
-void forwardAndBackward() {
-    Shouter arr[3] = {Shouter(0),Shouter(1),Shouter(2)};
-    auto list = XorLinkedList<Shouter>(
-                                       std::make_move_iterator(arr),
-                                       std::make_move_iterator(arr+3)
-                                       );
-    printf("iteration forward \n");
-    for (auto i = list.begin(); i != list.end(); ++i) {
-        i->hw();
-    }
-    printf("iteration backward\n");
-    //TODO: need implement rbegin and rend
-    for (auto i = --list.end(); i != --list.begin(); --i) {
-        i->hw();
-    }
-    printf("RAII is your friend!\n");
-}
-
-void nullList() {
-    auto list = XorLinkedList<Shouter>();
-    
-    //will it crash?
-    for (auto i = list.begin(); i != list.end(); ++i) {
-        i->hw();
-    }
-    
-    for (int i = 0 ; i < 3; ++i) {
-        list.append(Shouter(i));
-    }
-    
-    //did append good?
-    for (auto i = list.begin(); i != list.end(); ++i) {
-        i->hw();
-    }
-}
-void STLCompliant() {
-    auto list = XorLinkedList<int>({1,4,3,5});
-    for (auto i = list.begin(); i != list.end(); ++i) {
-        printf("%d\n",*i);
-    }
-    
-    std::reverse(list.begin(), list.end());
-    printf("-----reversed\n");
-    for (auto i = list.begin(); i != list.end(); ++i) {
-        printf("%d\n",*i);
-    }
-    
-    std::rotate(list.begin(),++++list.begin(), list.end());
-    printf("-----rotated\n");
-    for (auto i = list.begin(); i != list.end(); ++i) {
-        printf("%d\n",*i);
-    }
-    
-    auto findRes = std::find(list.begin(), list.end(), 5);
-    if (findRes) {
-        printf("finding 5, found %d\n",*findRes);
-    }
-    
-    printf("range_based for\n");
-    for (auto& i: list) {
-        printf("%d\n",i);
-    }
-}
-
-void reverseIterators() {
-    auto list = XorLinkedList<int>({4,6,7,8,9});
-    for (auto i = list.rbegin(); i != list.rend(); ++i) {
-        printf("%d\n",*i);
-    }
-}
-
-void constIterators() {
-    auto list = XorLinkedList<Shouter>({Shouter(0),Shouter(1),Shouter(2)});
     for (auto i = list.cbegin(); i != list.cend(); ++i) {
-        i->hw();
+        //i->setI(i->i + 2); //error: iterator is const
+        i->hw(); //good, const methods
     }
-    printf("c/cr\n");
+    for (auto i = list.rbegin(); i != list.rend(); ++i) {
+        //reverse iterator is mutable
+        i->setI(i->i + 2);
+    }
     for (auto i = list.crbegin(); i != list.crend(); ++i) {
-        i -> hw();
+        //i->setI(i->i + 2); //error: iterator is const
+        i->hw(); //good, const methods
     }
-}
-
-void getSize() {
-    auto list = XorLinkedList<Shouter>({Shouter(0),Shouter(1),Shouter(2)});
-    printf("size %zu\n",list.size());
-    
-    auto iter = list.cbegin();
-    for (int i = 0; i < list.size(); ++i) {
-        iter->hw();
-        ++iter;
-    }
+    printf("iterators test end\n");
 }
 
 int main() {
-    printf("-----\n");
-    copyFromVector();
-    printf("-----\n");
-    copyFromArray();
-    printf("-----\n");
-    copyFromInitializerList();
-    printf("-----\n");
-    moveFromArray();
-    printf("-----\n");
-    moveSelf();
-    printf("-----\n");
-    forwardAndBackward();
-    printf("-----\n");
-    nullList();
-    printf("-----\n");
-    STLCompliant();
-    printf("-----\n");
-    reverseIterators();
-    printf("-----\n");
-    constIterators();
-    printf("-----\n");
-    getSize();
-    
+    initWithSingleElement();
+    initWithContainers();
+    initWithIterators();
+    copyAndMove();
+    appendAndJoin();
+    iterators();
 }
