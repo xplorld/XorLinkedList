@@ -136,40 +136,44 @@ private:
     };
 
 public:
-
-    XorLinkedList() : head(nullptr), tail(nullptr) {}
+    XorLinkedList() : head(nullptr), tail(nullptr), size_(0) {}
     XorLinkedList(const T* v) : head(new node(v)), tail(head), size_(1) {}
     XorLinkedList(const T& v) : head(new node(v)), tail(head), size_(1) {}
     XorLinkedList(T&& v) : head(new node(std::move(v))), tail(head), size_(1) {}
     
-    XorLinkedList(std::initializer_list<T> array);
+    XorLinkedList(std::initializer_list<T> array) : XorLinkedList(array.begin(),array.end()) {}
+
     template <typename Container, class = typename std::enable_if<is_container<Container>::value>::type>
-    explicit XorLinkedList(Container container);
+    explicit XorLinkedList(Container container)
+    : XorLinkedList(std::make_move_iterator(container.begin()), std::make_move_iterator(container.end())) {}
     
-    XorLinkedList(T *array,size_t count);
+    XorLinkedList(T *array,size_t count) : XorLinkedList(array,array+count) {}
+
     template < typename input_iterator>
     XorLinkedList(input_iterator begin,input_iterator end);
     
     //move constructor
     XorLinkedList(XorLinkedList&& another);
     //copy
-    XorLinkedList(XorLinkedList const &another);
+    XorLinkedList(XorLinkedList const &another) : XorLinkedList(another.cbegin(),another.cend()) {}
     
     void append(const T &v);
     
     //no need to delete tail, it will be deleted by Node deconstructer recursively
-    ~XorLinkedList() {if (head) delete head;} ;
+    //head is nullptr if empty; OK to delete
+    ~XorLinkedList() {delete head;}
     
     size_t size() {return size_;}
-    iterator begin();
-    iterator end();
-    const_iterator cbegin() const;
-    const_iterator cend() const;
-    reverse_iterator rbegin();
-    reverse_iterator rend();
-    const_reverse_iterator crbegin() const;
-    const_reverse_iterator crend() const;
+    iterator begin()                        { return iterator(nullptr, head);}
+    iterator end()                          { return iterator(tail, nullptr);}
+    const_iterator cbegin() const           { return const_iterator(nullptr, head);}
+    const_iterator cend() const             { return const_iterator(tail, nullptr);}
+    reverse_iterator rbegin()               { return reverse_iterator(tail, nullptr);}
+    reverse_iterator rend()                 { return reverse_iterator(nullptr, head);}
+    const_reverse_iterator crbegin() const  { return const_reverse_iterator(tail, nullptr);}
+    const_reverse_iterator crend() const    { return const_reverse_iterator(nullptr, head);}
 };
+
 
 #include <algorithm>
 #define PtrToInt(p) reinterpret_cast<uintptr_t>((void *)(p))
@@ -341,30 +345,6 @@ void  XorLinkedList<T>::iterator_<is_const>::swap(XorLinkedList<T>::iterator_<is
     swap(curr, other.curr);
 }
 
-template <typename T>
-XorLinkedList<T>::XorLinkedList(std::initializer_list<T> array) {
-    auto tuple = node::newList(array.begin(),array.end());
-    head = std::get<0>(tuple);
-    tail = std::get<1>(tuple);
-    size_ = std::get<2>(tuple);
-}
-
-template <typename T>
-template <typename Container,class>
-XorLinkedList<T>::XorLinkedList(Container container) {
-    auto tuple = node::newList(std::make_move_iterator(container.begin()), std::make_move_iterator(container.end()));
-    head = std::get<0>(tuple);
-    tail = std::get<1>(tuple);
-    size_ = std::get<2>(tuple);
-}
-
-template <typename T>
-XorLinkedList<T>::XorLinkedList(T *array,size_t count) {
-    auto tuple = node::newList(array,array+count);
-    head = std::get<0>(tuple);
-    tail = std::get<1>(tuple);
-    size_ = std::get<2>(tuple);
-}
 
 template <typename T>
 template <typename input_iterator>
@@ -386,14 +366,6 @@ XorLinkedList<T>::XorLinkedList(XorLinkedList&& another) {
 }
 
 template <typename T>
-XorLinkedList<T>::XorLinkedList(XorLinkedList const& another) {
-    auto tuple = node::newList(another.cbegin(),another.cend());
-    head = std::get<0>(tuple);
-    tail = std::get<1>(tuple);
-    size_ = std::get<2>(tuple);
-}
-
-template <typename T>
 void XorLinkedList<T>::append(const T &v){
     if (tail) {
         tail = tail->join(&v);
@@ -403,56 +375,6 @@ void XorLinkedList<T>::append(const T &v){
         tail = head;
     }
     size_++;
-}
-
-template <typename T>
-typename XorLinkedList<T>::iterator XorLinkedList<T>::begin() {
-    if (head) return iterator(nullptr, head);
-    return iterator(nullptr,nullptr);
-}
-
-template <typename T>
-typename XorLinkedList<T>::iterator XorLinkedList<T>::end() {
-    if (tail) return iterator(tail,nullptr);
-    return iterator(nullptr,nullptr);
-}
-
-template <typename T>
-typename XorLinkedList<T>::reverse_iterator XorLinkedList<T>::rbegin() {
-    if (tail) return reverse_iterator(tail, nullptr);
-    return reverse_iterator(nullptr,nullptr);
-}
-
-
-template <typename T>
-typename XorLinkedList<T>::reverse_iterator XorLinkedList<T>::rend() {
-    if (tail) return reverse_iterator(nullptr,head);
-    return reverse_iterator(nullptr,nullptr);
-}
-
-template <typename T>
-typename XorLinkedList<T>::const_iterator XorLinkedList<T>::cbegin() const {
-    if (head) return const_iterator(nullptr, head);
-    return const_iterator(nullptr,nullptr);
-}
-
-template <typename T>
-typename XorLinkedList<T>::const_iterator XorLinkedList<T>::cend() const {
-    if (tail) return const_iterator(tail,nullptr);
-    return const_iterator(nullptr,nullptr);
-}
-
-template <typename T>
-typename XorLinkedList<T>::const_reverse_iterator XorLinkedList<T>::crbegin() const {
-    if (tail) return const_reverse_iterator(tail, nullptr);
-    return const_reverse_iterator(nullptr,nullptr);
-}
-
-
-template <typename T>
-typename XorLinkedList<T>::const_reverse_iterator XorLinkedList<T>::crend() const {
-    if (tail) return const_reverse_iterator(nullptr,head);
-    return const_reverse_iterator(nullptr,nullptr);
 }
 
 #endif /* XorLinkedList_hpp */
