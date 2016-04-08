@@ -11,14 +11,31 @@
 
 #include <utility>
 #include <iterator>
+#include <limits>
 #include <cstdint>
 #include <cassert>
 #include <tuple>
 #include <type_traits>
 #include "is_container_SFINAE.h"
 
+//template <typename T, typename A = std::allocator<T> >
+//class XorLinkedList {
+//    typedef A allocator_type;
+//    typedef typename A::value_type value_type;
+//    typedef typename A::reference reference;
+//    typedef typename A::const_reference const_reference;
+//    typedef typename A::difference_type difference_type;
+//    typedef typename A::size_type size_type;
+//    
 template <typename T>
 class XorLinkedList {
+//        typedef A allocator_type;
+        typedef T value_type;
+        typedef T& reference;
+        typedef const T& const_reference;
+//        typedef typename A::difference_type difference_type;
+        typedef size_t size_type;
+    
     class node {
         friend XorLinkedList;
         
@@ -38,11 +55,7 @@ class XorLinkedList {
         noexcept(std::is_nothrow_constructible<T, const input_iterator>::value)
         : xorptr(0),value(*v){} //copy, not move
         
-        node* join(T &&v);
-        node* join(const T& v);
-        
-        template < typename input_iterator>
-        node* join(const input_iterator v);
+        node* join(node *newNode) noexcept;
         
         template < typename input_iterator>
         static std::tuple<node *, node *,size_t> newList(input_iterator begin,input_iterator end);
@@ -52,8 +65,10 @@ class XorLinkedList {
         
         //do not declare as method, since `curr` may be nullptr
         static node *another(node* curr, node* one) noexcept; //->another
+        void link(node *former,node *latter);
         
-        ~node() ;
+        //FIXME: current `~node` assumes `this` is the head
+        ~node() noexcept(std::is_nothrow_destructible<T>::value) ;
     };
     
     //Wrapper so that List can put on the stack
@@ -68,14 +83,15 @@ class XorLinkedList {
     : public std::iterator <std::bidirectional_iterator_tag,typename std::conditional<is_const, const T, T>::type>
     {
         friend iterator_<true>;
+        friend XorLinkedList;
         
         //node is still non-const
         node *prev = nullptr;
         node *curr = nullptr;
     public:
-        iterator_(node *prev, node *curr) : prev(prev),curr(curr) {}
+        iterator_(node *prev, node *curr) noexcept : prev(prev),curr(curr) {}
         //only allow non-const to const
-        iterator_(const iterator_<false> &copyFrom)  : prev(copyFrom.prev),curr(copyFrom.curr) {}
+        iterator_(const iterator_<false> &copyFrom) noexcept  : prev(copyFrom.prev),curr(copyFrom.curr) {}
         
         typename iterator_::reference operator*()
         {assert(curr != nullptr && "dereference null iterator!"); return  curr->value; }
@@ -99,7 +115,7 @@ class XorLinkedList {
     {
     public:
         friend reverse_iterator_<true>;
-        reverse_iterator_(node *curr, node *next):
+        reverse_iterator_(node *curr, node *next) noexcept :
         std::reverse_iterator<iterator_<is_const>>
         (
          iterator_<is_const>(curr, next)
@@ -116,6 +132,8 @@ class XorLinkedList {
     };
     
 public:
+    
+#pragma mark - ctors
     XorLinkedList() : head(nullptr), tail(nullptr), size_(0) {}
     XorLinkedList(const T* v) : head(new node(v)), tail(head), size_(1) {}
     XorLinkedList(const T& v) : head(new node(v)), tail(head), size_(1) {}
@@ -137,27 +155,70 @@ public:
     //copy
     XorLinkedList(XorLinkedList const &another) : XorLinkedList(another.cbegin(),another.cend()) {}
     
-    void append(const T &v);
-    
-    //no need to delete tail, it will be deleted by Node deconstructer recursively
-    //head is nullptr if empty; OK to delete
-    ~XorLinkedList()                        {delete head;}
-    size_t size()                           {return size_;}
-    
+#pragma mark - iterators
     typedef iterator_<false> iterator;
     typedef iterator_<true> const_iterator;
     typedef reverse_iterator_<false> reverse_iterator;
     typedef reverse_iterator_<true> const_reverse_iterator;
     
-    iterator begin()                        { return iterator(nullptr, head);}
-    iterator end()                          { return iterator(tail, nullptr);}
-    const_iterator cbegin() const           { return const_iterator(nullptr, head);}
-    const_iterator cend() const             { return const_iterator(tail, nullptr);}
-    reverse_iterator rbegin()               { return reverse_iterator(tail, nullptr);}
-    reverse_iterator rend()                 { return reverse_iterator(nullptr, head);}
-    const_reverse_iterator crbegin() const  { return const_reverse_iterator(tail, nullptr);}
-    const_reverse_iterator crend() const    { return const_reverse_iterator(nullptr, head);}
-};
+    iterator begin() noexcept                       { return iterator(nullptr, head);}
+    iterator end() noexcept                         { return iterator(tail, nullptr);}
+    iterator begin() const noexcept                 { return iterator(nullptr, head);}
+    iterator end() const noexcept                   { return iterator(tail, nullptr);}
+    const_iterator cbegin() const noexcept          { return const_iterator(nullptr, head);}
+    const_iterator cend() const noexcept            { return const_iterator(tail, nullptr);}
+    reverse_iterator rbegin() noexcept              { return reverse_iterator(tail, nullptr);}
+    reverse_iterator rend() noexcept                { return reverse_iterator(nullptr, head);}
+    reverse_iterator rbegin() const noexcept        { return reverse_iterator(tail, nullptr);}
+    reverse_iterator rend() const noexcept          { return reverse_iterator(nullptr, head);}
+    const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(tail, nullptr);}
+    const_reverse_iterator crend() const noexcept   { return const_reverse_iterator(nullptr, head);}
+
+#pragma mark - element access
+    reference front()                       {return head->value;}
+    const_reference front() const           {return head->value;}
+    reference back()                        {return tail->value;}
+    const_reference back() const            {return tail->value;}
+
+#pragma mark - capacity
+    size_type size() const  noexcept        {return size_;}
+    bool empty() const  noexcept            {return size_ == 0;}
+    size_type max_size() const noexcept     {return std::numeric_limits<size_type>::max();}
+   
+#pragma mark - modifiers
+    void clear()  noexcept(std::is_nothrow_destructible<node>::value)   {delete head; head=nullptr;tail=nullptr;size_=0;}
+    //insert
+    //emplace
+    void erase(const_iterator from,const_iterator until);
+
+    void push_back(const T &v);
+    void push_back(T &&v);
+    //emplace_back
+    //void pop_back();
+    //push_front
+    //emplace_front
+    //pop_front
+    //resize
+    //swap
+    
+#pragma mark - operations
+    //merge
+    //splice
+    //remove(_if)
+    //reverse
+    //unique
+    //sort (what?)
+    
+    //no need to delete tail, it will be deleted by Node deconstructer recursively
+    //head is nullptr if empty; OK to delete
+    //FIXME: `~node` is going to change
+    ~XorLinkedList()                        {delete head;}
+    
+    };
+#pragma mark - non-member functions
+
+//operator==,!=, <, <=, >, >=
+//swap (should I pollute `std` namespace?)
 
 #define PtrToInt(p) reinterpret_cast<uintptr_t>((void *)(p))
 #define IntToPtr(i) reinterpret_cast<node *>((i))
@@ -176,7 +237,7 @@ XorLinkedList<T>::node::newList(input_iterator begin,input_iterator end) {
         tail = list;
         while (begin != end){
             
-            tail = tail->join(std::addressof(*begin));
+            tail = tail->join(new node(std::addressof(*begin)));
             ++begin;
             ++size;
         }
@@ -201,7 +262,7 @@ XorLinkedList<T>::node::newList(std::move_iterator<input_iterator> begin,std::mo
         ++size;
         tail = list;
         while (begin != end){
-            tail = tail->join(std::move(begin));
+            tail = tail->join(new node(std::move(begin)));
             ++begin;
             ++size;
         }
@@ -218,11 +279,13 @@ typename XorLinkedList<T>::node * XorLinkedList<T>::node::another(node*curr, nod
     if (curr == nullptr) {
         return nullptr;
     }
-    return IntToPtr(PtrToInt(one) ^ curr->xorptr);
+    node* n = IntToPtr(PtrToInt(one) ^ curr->xorptr);
+    if (n) return n;
+    return nullptr; //instead of NULL
 }
 
 template <typename T>
-XorLinkedList<T>::node::~node() {
+XorLinkedList<T>::node::~node() noexcept(std::is_nothrow_destructible<T>::value) {
     auto B = another(this,nullptr);
     if (B) {
         //A -> B -> C
@@ -237,47 +300,20 @@ XorLinkedList<T>::node::~node() {
     //        }
 }
 
+//NOTE: `this` must be an end node
 template <typename T>
-typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(const T &v) {
+typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(node *newNode) noexcept {
     //A->B, C.
     //B.p = A, C.p = 0
     
     node *endNode = this;
-    node *newNode = new node(std::move(v));
-    endNode->xorptr = endNode->xorptr ^ PtrToInt((void *)newNode);
-    newNode->xorptr = PtrToInt((void *)endNode);
+    endNode->xorptr = endNode->xorptr ^ PtrToInt(newNode);
+    newNode->xorptr = PtrToInt(endNode);
     //A->B->C
     //B.p = A^C, C.p = B^0 = B
     return newNode;
 }
 
-template <typename T>
-template < typename input_iterator>
-typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(const input_iterator v) {
-    //A->B, C.
-    //B.p = A, C.p = 0
-    
-    node *endNode = this;
-    node *newNode = new node(v);
-    endNode->xorptr = endNode->xorptr ^ PtrToInt((void *)newNode);
-    newNode->xorptr = PtrToInt((void *)endNode);
-    //A->B->C
-    //B.p = A^C, C.p = B^0 = B
-    return newNode;
-}
-
-template <typename T>
-typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(T&& v) {
-    //A->B, C.
-    //B.p = A, C.p = 0
-    node *endNode = this;
-    node *newNode = new node(std::move(v));
-    endNode->xorptr = endNode->xorptr ^ PtrToInt((void *)newNode);
-    newNode->xorptr = PtrToInt((void *)endNode);
-    //A->B->C
-    //B.p = A^C, C.p = B^0 = B
-    return newNode;
-}
 
 #undef PtrToInt
 #undef IntToPtr
@@ -344,10 +380,22 @@ XorLinkedList<T>::XorLinkedList(XorLinkedList&& another) {
     another.size_ = 0;
 }
 
+//template <typename T>
+//void XorLinkedList<T>::erase(const_iterator from,const_iterator until) {
+//    while (from != until) {
+//        if (from.prev) { //detach
+//            auto prevNode = from.prev;
+//            prevNode->xorptr ^= PtrToInt(from.curr);
+//        }
+//        delete from.curr;
+//        from++;
+//    }
+//}
+
 template <typename T>
-void XorLinkedList<T>::append(const T &v){
+void XorLinkedList<T>::push_back(const T &v){
     if (tail) {
-        tail = tail->join(std::addressof(v));
+        tail = tail->join(new node(std::addressof(v)));
     } else {
         //empty linked list
         head = new node(std::addressof(v));
@@ -355,5 +403,30 @@ void XorLinkedList<T>::append(const T &v){
     }
     size_++;
 }
+
+template <typename T>
+void XorLinkedList<T>::push_back(T &&v){
+    if (tail) {
+        tail = tail->join(new node(std::move(v)));
+    } else {
+        //empty linked list
+        head = new node(new node(std::move(v)));
+        tail = head;
+    }
+    size_++;
+}
+//
+//template <typename T>
+//void XorLinkedList<T>::pop_back() {
+//    if (empty()) {
+//        return;
+//    }
+//    node *oldTail = tail;
+//    node *newTail = node::another(tail,nullptr);
+//    delete oldTail;
+//    tail = newTail;
+//    size_--;
+//}
+
 
 #endif /* XorLinkedList_hpp */

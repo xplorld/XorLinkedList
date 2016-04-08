@@ -139,7 +139,7 @@ void appendAndJoin() {
     auto size_1 = list_1.size();
     auto list_2 = XorLinkedList<Shouter>({Shouter(3),Shouter(4),Shouter(5)});
     for (auto &i: list_2) {
-        list_1.append(i);
+        list_1.push_back(i);
     }
     assert(list_1.size() == size_1 + list_2.size() && "append size mismatch");
     for (auto &i : list_2) {
