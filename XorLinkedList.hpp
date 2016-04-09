@@ -220,7 +220,9 @@ public:
     //merge
     //splice
     //remove(_if)
-    //reverse
+
+    //NOTE: this `reverse` invalidates all iterators!
+    void reverse() {std::swap(head, tail);}
     //unique
     //sort (what?)
     

@@ -215,6 +215,19 @@ void erase() {
     for (auto &i:list) printf("%d ",i);
     printf("\n");
 }
+
+void reverse() {
+    auto list = XorLinkedList<int>({1,2,3,4,5,6,7,8,9,0});
+    printf("before reverse:\n");
+    for (auto &i:list) printf("%d ",i);
+    printf("\n");
+    
+    list.reverse();
+    printf("after reverse:\n");
+    for (auto &i:list) printf("%d ",i);
+    printf("\n");
+    
+}
 int main() {
     initWithSingleElement();
     initWithContainers();
@@ -223,4 +236,5 @@ int main() {
     appendAndJoin();
     iterators();
     erase();
+    reverse();
 }
