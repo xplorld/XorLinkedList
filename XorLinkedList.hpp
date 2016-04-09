@@ -214,7 +214,7 @@ public:
     //emplace_front
     void pop_front() noexcept(std::is_nothrow_destructible<node>::value)    {erase(cbegin());}
     //resize
-    //swap
+    void swap(XorLinkedList &other) {std::swap(head, other.head); std::swap(tail, other.tail); std::swap(size_, other.size_);}
     //assign
 #pragma mark - operations
     //merge
