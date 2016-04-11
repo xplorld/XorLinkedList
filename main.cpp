@@ -178,7 +178,7 @@ void modify() {
     printf("before erase:\n");
     for (auto &i:list) printf("%d ",i);
     printf("\n");
-
+    
     auto beg = list.begin();
     std::advance(beg, 3);
     auto end = list.begin();
@@ -225,9 +225,9 @@ void modify() {
     printf("\n");
 }
 
-void reverse() {
+void operations() {
     auto list = XorLinkedList<int>({1,2,3,4,5,6,7,8,9,0});
-    printf("before reverse:\n");
+    printf("list before reverse:\n");
     for (auto &i:list) printf("%d ",i);
     printf("\n");
     
@@ -236,7 +236,85 @@ void reverse() {
     for (auto &i:list) printf("%d ",i);
     printf("\n");
     
+    auto list2 = XorLinkedList<int>({42,43,44});
+    printf("list2: \n");
+    for (auto &i:list2) printf("%d ",i);
+    printf("\n");
+    
+    auto iter = list2.cbegin();
+    std::advance(iter, 2); // point to 44
+    list2.splice(iter, list);
+    printf("list2.splice(<iter to 44>, list): \n");
+    for (auto &i:list2) printf("%d ",i);
+    printf("\n");
+    printf("now list:(should be empty)\n");
+    for (auto &i:list) printf("%d ",i);
+    printf("\n");
+    printf("size: list %lu, list2 %lu\n",list.size(),list2.size());
+    
+    list.splice(list.begin(), list2, ++list2.begin());
+    printf("list.splice(list.begin(), list2, ++list2.begin());\n");
+    for (auto &i:list) printf("%d ",i);
+    printf("\n");
+    
+    printf("now list2:(should be one less)\n");
+    for (auto &i:list2) printf("%d ",i);
+    printf("\n");
+    printf("size: list %lu, list2 %lu\n",list.size(),list2.size());
+    
+    list.splice(list.begin(), list2, ++list2.begin(),--list2.end());
+    printf("list.splice(list.begin(), list2, ++list2.begin(),--list2.end());\n");
+    for (auto &i:list) printf("%d ",i);
+    printf("\n");
+    
+    printf("now list2:(should remain 2 elements)\n");
+    for (auto &i:list2) printf("%d ",i);
+    printf("\n");
+    printf("size: list %lu, list2 %lu\n",list.size(),list2.size());
+    
+    auto list4 = XorLinkedList<int>({1, 2, 4, 4, 8, 9, 11, 22, 1, 2});
+    printf("list4:\n");
+    for (auto &i:list4) printf("%d ",i);
+    printf("\n");
+    list4.unique([](const int&a,const int&b){return b == 2*a;});
+    printf("list4.unique([](const int&a,const int&b){return b == 2*a;});\n");
+    for (auto &i:list4) printf("%d ",i);
+    printf("\n");
+    list4.unique();
+    printf("list4.unique();\n");
+    for (auto &i:list4) printf("%d ",i);
+    printf("\n");
+    
 }
+
+void compare() {
+    auto list1 = XorLinkedList<int>({1,2,3});
+    auto list2 = XorLinkedList<int>({1,2,3});
+    auto list3 = XorLinkedList<int>({2,3,4});
+    
+    printf("list1:\n");
+    for (auto &i:list1) printf("%d ",i);
+    printf("\n");
+    
+    printf("list2:\n");
+    for (auto &i:list2) printf("%d ",i);
+    printf("\n");
+    
+    printf("list3:\n");
+    for (auto &i:list3) printf("%d ",i);
+    printf("\n");
+    
+    printf("list1 == list1: %s\n",(list1 == list1) ? "true" : "false");
+    printf("list1 == list2: %s\n",(list1 == list2) ? "true" : "false");
+    printf("list1 <= list2: %s\n",(list1 <= list2) ? "true" : "false");
+    printf("list1 == list3: %s\n",(list1 == list3) ? "true" : "false");
+    printf("list1 != list3: %s\n",(list1 != list3) ? "true" : "false");
+    printf("list1 >  list3: %s\n",(list1 >  list3) ? "true" : "false");
+    printf("list1 <  list3: %s\n",(list1 <  list3) ? "true" : "false");
+    printf("list1 >= list3: %s\n",(list1 >= list3) ? "true" : "false");
+    printf("list1 <= list3: %s\n",(list1 <= list3) ? "true" : "false");
+}
+
 int main() {
     initWithSingleElement();
     initWithContainers();
@@ -245,5 +323,6 @@ int main() {
     appendAndJoin();
     iterators();
     modify();
-    reverse();
+    operations();
+    compare();
 }

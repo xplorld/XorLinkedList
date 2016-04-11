@@ -17,8 +17,8 @@
 #include <tuple>
 #include <type_traits>
 #include "is_container_SFINAE.h"
+#include <algorithm>
 
-#include <iostream>
 //template <typename T, typename A = std::allocator<T> >
 //class XorLinkedList {
 //    typedef A allocator_type;
@@ -27,15 +27,15 @@
 //    typedef typename A::const_reference const_reference;
 //    typedef typename A::difference_type difference_type;
 //    typedef typename A::size_type size_type;
-//    
+//
 template <typename T>
 class XorLinkedList {
-//        typedef A allocator_type;
-        typedef T value_type;
-        typedef T& reference;
-        typedef const T& const_reference;
-//        typedef typename A::difference_type difference_type;
-        typedef size_t size_type;
+    //        typedef A allocator_type;
+    typedef T value_type;
+    typedef T& reference;
+    typedef const T& const_reference;
+    //        typedef typename A::difference_type difference_type;
+    typedef size_t size_type;
     
     class node {
         friend XorLinkedList;
@@ -177,18 +177,18 @@ public:
     reverse_iterator rend() const noexcept          { return reverse_iterator(nullptr, head);}
     const_reverse_iterator crbegin() const noexcept { return const_reverse_iterator(tail, nullptr);}
     const_reverse_iterator crend() const noexcept   { return const_reverse_iterator(nullptr, head);}
-
+    
 #pragma mark - element access
     reference front()                       {return head->value;}
     const_reference front() const           {return head->value;}
     reference back()                        {return tail->value;}
     const_reference back() const            {return tail->value;}
-
+    
 #pragma mark - capacity
     size_type size() const  noexcept        {return size_;}
     bool empty() const  noexcept            {return size_ == 0;}
     size_type max_size() const noexcept     {return std::numeric_limits<size_type>::max();}
-   
+    
 #pragma mark - modifiers
     void clear()  noexcept(std::is_nothrow_destructible<node>::value)   {erase(cbegin(), cend());}
     //emplace
@@ -196,7 +196,7 @@ public:
     void erase_ref(const_iterator &from,const_iterator &until);
     void erase(const_iterator pos);
     void erase_ref(const_iterator &pos);
-
+    
     iterator insert(const_iterator pos, const T& value) {return insertNode(pos, new node(std::addressof(value)));}
     iterator insert(const_iterator pos, T&& value)      {return insertNode(pos, new node(std::move(value)));}
     iterator insert( const_iterator pos, size_type count, const T& value );
@@ -217,9 +217,14 @@ public:
     //assign
 #pragma mark - operations
     //merge
-    //splice
-    //remove(_if)
 
+    void splice( const_iterator pos, XorLinkedList& other  );
+    void splice( const_iterator pos, XorLinkedList&& other ) { splice(pos, other);}
+    void splice( const_iterator pos, XorLinkedList& other,  const_iterator it );
+    void splice( const_iterator pos, XorLinkedList&& other, const_iterator it ) {splice(pos, other, it);}
+    void splice( const_iterator pos, XorLinkedList& other,  const_iterator first, const_iterator last);
+    void splice( const_iterator pos, XorLinkedList&& other, const_iterator first, const_iterator last){splice(pos, other, first, last);}
+    
     void remove(const T& value);
     
     template< class UnaryPredicate >
@@ -227,17 +232,22 @@ public:
     
     //NOTE: this `reverse` invalidates all iterators!
     void reverse() {std::swap(head, tail);}
-    //unique
+    void unique();
+    template< class BinaryPredicate >
+    void unique( BinaryPredicate p );
     //sort (what?)
     
-
+#pragma mark - desctructor
     ~XorLinkedList()                        {clear();}
+#pragma mark - non-member functions
+    friend bool operator==(const XorLinkedList& lhs,const XorLinkedList& rhs) {return std::equal(lhs.begin(), lhs.end(), rhs.begin());}
+    friend bool operator!=(const XorLinkedList& lhs,const XorLinkedList& rhs) {return !(lhs == rhs);}
+    friend bool operator<(const XorLinkedList& lhs,const XorLinkedList& rhs) {return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());}
+    friend bool operator>(const XorLinkedList& lhs,const XorLinkedList& rhs) {return rhs<lhs;}
+    friend bool operator<=(const XorLinkedList& lhs,const XorLinkedList& rhs) {return !(lhs > rhs);}
+    friend bool operator>=(const XorLinkedList& lhs,const XorLinkedList& rhs) {return !(lhs < rhs);}
     
 };
-#pragma mark - non-member functions
-
-//operator==,!=, <, <=, >, >=
-//swap (should I pollute `std` namespace?)
 
 #define PtrToInt(p) reinterpret_cast<uintptr_t>((void *)(p))
 #define IntToPtr(i) reinterpret_cast<node *>((i))
@@ -451,6 +461,118 @@ void XorLinkedList<T>::erase_ref(const_iterator &pos) {
 }
 
 template <typename T>
+void XorLinkedList<T>::splice( const_iterator pos, XorLinkedList& other ) {
+    if (other == *this) return;
+    if (!other.size()) return;
+    //there must be something in `other`
+    node *oldHead = pos.prev; // may be nullptr e.g. pos == begin()
+    node *oldTail = pos.curr; // may be nullptr e.g. pos == end()
+    node *newHead = other.head;
+    node *newTail = other.tail;
+    // oldHead - newHead - newTail - oldTail;
+    if (oldHead) {
+        oldHead->xorptr ^= PtrToInt(oldTail);
+        oldHead->xorptr ^= PtrToInt(newHead);
+    }
+    if (oldTail) {
+        oldTail->xorptr ^= PtrToInt(oldHead);
+        oldTail->xorptr ^= PtrToInt(newTail);
+    }
+    newHead->xorptr ^= PtrToInt(oldHead);
+    newTail->xorptr ^= PtrToInt(oldTail);
+    size_ += other.size_;
+    other.head = nullptr;
+    other.tail = nullptr;
+    other.size_ = 0;
+}
+
+template <typename T>
+void XorLinkedList<T>::splice( const_iterator pos, XorLinkedList& other, const_iterator it ) {
+    node *oldHead = pos.prev; // may be nullptr e.g. pos == begin()
+    node *oldTail = pos.curr; // may be nullptr e.g. pos == end()
+    // ... - other_prev - other_next - ...
+    node *n = it.curr;
+    node* other_prev = it.prev;
+    node* other_next = node::another(n,other_prev);
+    if (other_prev) {
+        other_prev->xorptr ^= PtrToInt(n);
+        other_prev->xorptr ^= PtrToInt(other_next);
+    } else {
+        other.head = other_next;
+    }
+    if (other_next) {
+        other_next->xorptr ^= PtrToInt(n);
+        other_next->xorptr ^= PtrToInt(other_prev);
+    } else {
+        other.tail = other_prev;
+    }
+    // oldHead - n - oldTail
+    if (oldHead) {
+        oldHead->xorptr ^= PtrToInt(oldTail);
+        oldHead->xorptr ^= PtrToInt(n);
+    } else {
+        head = n;
+    }
+    if (oldTail) {
+        oldTail->xorptr ^= PtrToInt(oldHead);
+        oldTail->xorptr ^= PtrToInt(n);
+    } else {
+        tail = n;
+    }
+    n->xorptr = PtrToInt(oldHead) ^ PtrToInt(oldTail);
+    
+    ++size_;
+    --other.size_;
+}
+
+template <typename T>
+void XorLinkedList<T>:: splice( const_iterator pos, XorLinkedList& other,  const_iterator first, const_iterator last) {
+    auto distance = std::distance(first, last);
+    
+    node *oldHead = pos.prev; // may be nullptr e.g. pos == begin()
+    node *oldTail = pos.curr; // may be nullptr e.g. pos == end()
+    node *newHead = first.curr; //non-null by sepc
+    node *newTail = last.prev; //non-null by spec
+    node *other_new_head = first.prev; //may be nullptr
+    node *other_new_tail = last.curr;  //may be nullptr
+    
+    // oldHead - newHead - newTail - oldTail;
+    if (oldHead) {
+        oldHead->xorptr ^= PtrToInt(oldTail);
+        oldHead->xorptr ^= PtrToInt(newHead);
+    } else {
+        head = newHead;
+    }
+    if (oldTail) {
+        oldTail->xorptr ^= PtrToInt(oldHead);
+        oldTail->xorptr ^= PtrToInt(newTail);
+    } else {
+        tail = newTail;
+    }
+    newHead->xorptr ^= PtrToInt(other_new_head);
+    newHead->xorptr ^= PtrToInt(oldHead);
+    newTail->xorptr ^= PtrToInt(other_new_tail);
+    newTail->xorptr ^= PtrToInt(oldTail);
+    
+    //other_new_head - other_new_tail
+    if (other_new_head) {
+        other_new_head->xorptr ^= PtrToInt(newHead);
+        other_new_head->xorptr ^= PtrToInt(other_new_tail);
+    } else {
+        other.head = other_new_tail;
+    }
+    if (other_new_tail) {
+        other_new_tail->xorptr ^= PtrToInt(newTail);
+        other_new_tail->xorptr ^= PtrToInt(other_new_head);
+    } else {
+        other.tail = other_new_head;
+    }
+    
+    size_ += distance;
+    other.size_ -= distance;
+}
+
+template <typename T>
 void XorLinkedList<T>::remove(const T& value) {
     for (const_iterator i = cbegin();i != cend();++i) {
         if ((*i) == value) {
@@ -464,6 +586,31 @@ template< class UnaryPredicate >
 void XorLinkedList<T>::remove_if( UnaryPredicate p ) {
     for (const_iterator i = cbegin();i != cend();++i) {
         if (p(*i)) {
+            erase_ref(i);
+        }
+    }
+}
+
+template <typename T>
+void XorLinkedList<T>::unique() {
+    if (size() < 2) {
+        return;
+    }
+    for (const_iterator i = ++cbegin(); i != cend(); ++i) {
+        if (i.prev->value == i.curr->value) {
+            erase_ref(i);
+        }
+    }
+}
+
+template <typename T>
+template< class BinaryPredicate >
+void XorLinkedList<T>::unique( BinaryPredicate p ) {
+    if (size() < 2) {
+        return;
+    }
+    for (const_iterator i = ++cbegin();i != cend();++i) {
+        if (p(i.prev->value , i.curr->value)) {
             erase_ref(i);
         }
     }
