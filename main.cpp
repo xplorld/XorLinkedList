@@ -337,6 +337,12 @@ void assignment() {
     list = vec;
     list = std::move(vec);
     printf("list assigned\n");
+    
+    list.assign(5, Shouter(5));
+    for (auto &i:list) i.hw();
+    printf("\n");
+    
+    
 }
 
 int main() {

@@ -241,7 +241,12 @@ public:
     void pop_front() noexcept(std::is_nothrow_destructible<node>::value)    {erase(cbegin());}
     //resize
     void swap(XorLinkedList &other) {std::swap(head, other.head); std::swap(tail, other.tail); std::swap(size_, other.size_);}
-    //assign
+    
+    void assign( size_type count, const T& value );
+    template< class InputIt >
+    void assign( InputIt first, InputIt last );
+    void assign( std::initializer_list<T> ilist );
+
 #pragma mark - operations
     //merge
 
@@ -281,10 +286,10 @@ template <typename T>
 typename std::tuple< typename XorLinkedList<T>::node *, typename XorLinkedList<T>::node *, typename XorLinkedList<T>::size_type>
 XorLinkedList<T>::node::newList(const T& value,size_type count) {
     if (!count) return std::make_tuple(nullptr,nullptr,0);
-    node *list = new node(std::addressof(*value));
+    node *list = new node(std::addressof(value));
     node *tail = list;
     for (size_type i = 1; i < count; ++i) {
-        tail = tail->join(new node(std::addressof(*value)));
+        tail = tail->join(new node(std::addressof(value)));
     }
     return std::make_tuple(list,tail,count);
 }
@@ -648,6 +653,28 @@ void XorLinkedList<T>::push_front(T &&v){
         tail = head;
     }
     size_++;
+}
+
+template <typename T>
+void XorLinkedList<T>::assign( size_type count, const T& value ) {
+    clear();
+    XorLinkedList list(value,count);
+    list.swap(*this);
+}
+
+template <typename T>
+template< class InputIt >
+void XorLinkedList<T>::assign( InputIt first, InputIt last ) {
+    clear();
+    XorLinkedList list(first,last);
+    list.swap(*this);
+}
+
+template <typename T>
+void XorLinkedList<T>::assign( std::initializer_list<T> ilist ) {
+    clear();
+    XorLinkedList list(ilist);
+    list.swap(*this);
 }
 
 
