@@ -162,7 +162,12 @@ public:
     XorLinkedList(XorLinkedList&& another);
     //copy
     XorLinkedList(XorLinkedList const &another) : XorLinkedList(another.cbegin(),another.cend()) {}
-    
+#pragma mark - assignment operator
+    XorLinkedList& operator=( const XorLinkedList& other ) {XorLinkedList list(other); list.swap(*this); return *this;}
+    XorLinkedList& operator=( XorLinkedList&& other ) {other.swap(*this); return *this;}
+    XorLinkedList& operator=( std::initializer_list<T> ilist ) { XorLinkedList list(ilist); list.swap(*this);  return *this;}
+    template <typename Container, class = typename std::enable_if<is_container<Container>::value>::type>
+    XorLinkedList& operator=(Container container) { XorLinkedList list(container); list.swap(*this); return *this;}
 #pragma mark - iterators
     
     iterator begin() noexcept                       { return iterator(nullptr, head);}

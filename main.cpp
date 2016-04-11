@@ -314,6 +314,30 @@ void compare() {
     printf("list1 >= list3: %s\n",(list1 >= list3) ? "true" : "false");
     printf("list1 <= list3: %s\n",(list1 <= list3) ? "true" : "false");
 }
+void assignment() {
+    XorLinkedList<Shouter> list_lvalue({Shouter(1),Shouter(2),Shouter(3)});
+    printf("list inited\n");
+    XorLinkedList<Shouter> list;
+    
+     //assignment by lvalue ref
+    list = list_lvalue;
+    printf("list assigned\n");
+    
+     //assignment by init list
+    list = {Shouter(4),Shouter(5),Shouter(6)};
+    printf("list assigned\n");
+    
+    //assignment by rvalue ref
+    list = XorLinkedList<Shouter>({Shouter(7),Shouter(8),Shouter(9)});
+    printf("list assigned\n");
+    
+    //assignment by vector
+    auto vec = std::vector<Shouter>({Shouter(7),Shouter(8),Shouter(9)});
+    printf("vec inited\n");
+    list = vec;
+    list = std::move(vec);
+    printf("list assigned\n");
+}
 
 int main() {
     initWithSingleElement();
@@ -325,4 +349,5 @@ int main() {
     modify();
     operations();
     compare();
+    assignment();
 }
