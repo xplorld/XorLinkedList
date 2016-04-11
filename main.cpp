@@ -173,33 +173,42 @@ void iterators() {
     }
     printf("iterators test end\n");
 }
-void erase() {
-    auto list = XorLinkedList<int>({1,2,3,4,5,6,7,8,9,0});
+void modify() {
+    auto list = XorLinkedList<int>({1,2,3,4,5,6,7,8,666,9,666,666,666,666,0});
     printf("before erase:\n");
     for (auto &i:list) printf("%d ",i);
     printf("\n");
-    
+
     auto beg = list.begin();
     std::advance(beg, 3);
     auto end = list.begin();
     std::advance(end, 7);
     list.erase(beg,end);
-    printf("after erasing 4 to 7:\n");
+    printf("after erasing index 3 to 6:\n");
     for (auto &i:list) printf("%d ",i);
     printf("\n");
     
     list.erase(++list.begin());
-    printf("after erasing 2:\n");
+    printf("after erasing index 1:\n");
     for (auto &i:list) printf("%d ",i);
     printf("\n");
     
     auto ins = list.begin();
     std::advance(ins, 2);
     list.insert(ins, 42);
-    printf("after inserting 42 at pos 2:\n");
+    printf("after inserting 42 at index 2:\n");
     for (auto &i:list) printf("%d ",i);
     printf("\n");
     
+    list.remove(666);
+    printf("after removing 666:\n");
+    for (auto &i:list) printf("%d ",i);
+    printf("\n");
+    
+    list.remove_if([](const int& n){ return (n & 0x01) == 0; });
+    printf("after removing even integers:\n");
+    for (auto &i:list) printf("%d ",i);
+    printf("\n");
     list.pop_back();
     printf("after pop_back\n");
     for (auto &i:list) printf("%d ",i);
@@ -235,6 +244,6 @@ int main() {
     copyAndMove();
     appendAndJoin();
     iterators();
-    erase();
+    modify();
     reverse();
 }

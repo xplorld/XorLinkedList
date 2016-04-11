@@ -196,7 +196,9 @@ public:
     void clear()  noexcept(std::is_nothrow_destructible<node>::value)   {erase(cbegin(), cend());}
     //emplace
     void erase(const_iterator from,const_iterator until);
+    void erase_ref(const_iterator &from,const_iterator &until);
     void erase(const_iterator pos);
+    void erase_ref(const_iterator &pos);
 
     iterator insert(const_iterator pos, const T& value) {return insertNode(pos, new node(std::addressof(value)));}
     iterator insert(const_iterator pos, T&& value)      {return insertNode(pos, new node(std::move(value)));}
@@ -221,6 +223,11 @@ public:
     //splice
     //remove(_if)
 
+    void remove(const T& value);
+    
+    template< class UnaryPredicate >
+    void remove_if( UnaryPredicate p );
+    
     //NOTE: this `reverse` invalidates all iterators!
     void reverse() {std::swap(head, tail);}
     //unique
@@ -435,6 +442,18 @@ void XorLinkedList<T>::erase(const_iterator from,const_iterator until) {
         --size_;
     }
 }
+
+template <typename T>
+void XorLinkedList<T>::erase_ref(const_iterator &from,const_iterator &until) {
+    if (from == until) return;
+    node *prev = from.prev; //last remaining node
+    node *next = until.curr;
+    erase(from,until);
+    until.prev = prev;
+    from.curr = next;
+    --from;
+}
+
 template <typename T>
 void XorLinkedList<T>::erase(const_iterator pos) {
     const_iterator next = pos;
@@ -443,9 +462,35 @@ void XorLinkedList<T>::erase(const_iterator pos) {
 }
 
 template <typename T>
+void XorLinkedList<T>::erase_ref(const_iterator &pos) {
+    const_iterator next = pos;
+    ++next;
+    erase_ref(pos, next);
+}
+
+template <typename T>
+void XorLinkedList<T>::remove(const T& value) {
+    for (const_iterator i = cbegin();i != cend();++i) {
+        if ((*i) == value) {
+            erase_ref(i);
+        }
+    }
+}
+
+template <typename T>
+template< class UnaryPredicate >
+void XorLinkedList<T>::remove_if( UnaryPredicate p ) {
+    for (const_iterator i = cbegin();i != cend();++i) {
+        if (p(*i)) {
+            erase_ref(i);
+        }
+    }
+}
+
+template <typename T>
 typename XorLinkedList<T>::iterator XorLinkedList<T>::insertNodes(const_iterator pos, node* newHead,node *newTail, size_type new_size) {
     node *next = pos.curr;
-    node *prev = (--pos).curr;
+    node *prev = pos.prev;
     newHead->xorptr ^= PtrToInt(prev);
     newTail->xorptr ^= PtrToInt(next);
     
@@ -459,6 +504,7 @@ typename XorLinkedList<T>::iterator XorLinkedList<T>::insertNodes(const_iterator
     }
     if (!prev) head = newHead;
     if (!next) tail = newTail;
+    pos.prev = newTail;
     size_ += new_size;
     return iterator(prev,newHead);
 }
