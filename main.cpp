@@ -340,12 +340,12 @@ void assignment() {
 }
 
 int main() {
-    initWithSingleElement();
-    initWithContainers();
-    initWithIterators();
-    copyAndMove();
-    appendAndJoin();
-    iterators();
+//    initWithSingleElement();
+//    initWithContainers();
+//    initWithIterators();
+//    copyAndMove();
+//    appendAndJoin();
+//    iterators();
     modify();
     operations();
     compare();

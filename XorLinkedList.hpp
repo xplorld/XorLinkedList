@@ -19,6 +19,9 @@
 #include "is_container_SFINAE.h"
 #include <algorithm>
 
+#define PtrToInt(p) reinterpret_cast<uintptr_t>((void *)(p))
+#define IntToPtr(i) reinterpret_cast<node *>((i))
+
 //template <typename T, typename A = std::allocator<T> >
 //class XorLinkedList {
 //    typedef A allocator_type;
@@ -39,7 +42,26 @@ class XorLinkedList {
     
     class node {
         friend XorLinkedList;
-        
+        friend void detach_nodes(node *a,node *b,node *c,node *d) {
+                //a-b-...-c-d -> a-d, b-...-c
+                //a and b can be null
+                if (a) {
+                    a->xorptr ^= PtrToInt(b);
+                    a->xorptr ^= PtrToInt(d);
+                }
+                if (d) {
+                    d->xorptr ^= PtrToInt(c);
+                    d->xorptr ^= PtrToInt(a);
+                }
+                b->xorptr ^= PtrToInt(a);
+                c->xorptr ^= PtrToInt(d);
+            }
+        friend void link_or_unlink_nodes(node *a,node *b) {
+            //...-a, b-... -> ...-a-b-...
+            //...-a-b-...  -> ...-a, b-...
+            if (a) a->xorptr ^= PtrToInt(b);
+            if (b) b->xorptr ^= PtrToInt(a);
+        }
         uintptr_t xorptr;
         T value;
         
@@ -212,7 +234,7 @@ public:
     void push_back(const T &v);
     void push_back(T &&v);
     //emplace_back
-    void pop_back() noexcept(std::is_nothrow_destructible<node>::value){erase(--cend());}
+    void pop_back() noexcept(std::is_nothrow_destructible<node>::value)     {erase(--cend());}
     void push_front(const T &v);
     void push_front(T &&v);
     //emplace_front
@@ -254,8 +276,6 @@ public:
     
 };
 
-#define PtrToInt(p) reinterpret_cast<uintptr_t>((void *)(p))
-#define IntToPtr(i) reinterpret_cast<node *>((i))
 
 template <typename T>
 typename std::tuple< typename XorLinkedList<T>::node *, typename XorLinkedList<T>::node *, typename XorLinkedList<T>::size_type>
@@ -337,9 +357,7 @@ typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(node *newNode) no
     //A->B, C.
     //B.p = A, C.p = 0
     
-    node *edgeNode = this;
-    edgeNode->xorptr = edgeNode->xorptr ^ PtrToInt(newNode);
-    newNode->xorptr = PtrToInt(edgeNode);
+    link_or_unlink_nodes(this, newNode);
     //A->B->C
     //B.p = A^C, C.p = B^0 = B
     return newNode;
@@ -419,19 +437,15 @@ template <typename T>
 void XorLinkedList<T>::erase(const_iterator from,const_iterator until) {
     if (from == until) return;
     node *prev = from.prev; //last remaining node
+    node *head = from.curr;
+    node *tail = until.prev;
     node *next = until.curr;
     
-    if (!prev) head = next;
-    if (!next) tail = prev;
-    //bootstrap
-    if (prev) {
-        prev->xorptr ^= PtrToInt(from.curr);
-        prev->xorptr ^= PtrToInt(next);
-    }
-    if (next) {
-        next->xorptr ^= PtrToInt(until.prev);
-        next->xorptr ^= PtrToInt(prev);
-    }
+    if (!prev) this->head = next;
+    if (!next) this->tail = prev;
+    detach_nodes(prev, head, tail, next);
+    from.prev = nullptr;
+    until.curr = nullptr;
     while (from.curr != until.curr) {
         node *deleteNode = from.curr;
         ++from;
@@ -475,16 +489,9 @@ void XorLinkedList<T>::splice( const_iterator pos, XorLinkedList& other ) {
     node *newHead = other.head;
     node *newTail = other.tail;
     // oldHead - newHead - newTail - oldTail;
-    if (oldHead) {
-        oldHead->xorptr ^= PtrToInt(oldTail);
-        oldHead->xorptr ^= PtrToInt(newHead);
-    }
-    if (oldTail) {
-        oldTail->xorptr ^= PtrToInt(oldHead);
-        oldTail->xorptr ^= PtrToInt(newTail);
-    }
-    newHead->xorptr ^= PtrToInt(oldHead);
-    newTail->xorptr ^= PtrToInt(oldTail);
+    link_or_unlink_nodes(oldHead,oldTail);
+    link_or_unlink_nodes(oldHead, newHead);
+    link_or_unlink_nodes(newTail, oldTail);
     size_ += other.size_;
     other.head = nullptr;
     other.tail = nullptr;
@@ -493,41 +500,7 @@ void XorLinkedList<T>::splice( const_iterator pos, XorLinkedList& other ) {
 
 template <typename T>
 void XorLinkedList<T>::splice( const_iterator pos, XorLinkedList& other, const_iterator it ) {
-    node *oldHead = pos.prev; // may be nullptr e.g. pos == begin()
-    node *oldTail = pos.curr; // may be nullptr e.g. pos == end()
-    // ... - other_prev - other_next - ...
-    node *n = it.curr;
-    node* other_prev = it.prev;
-    node* other_next = node::another(n,other_prev);
-    if (other_prev) {
-        other_prev->xorptr ^= PtrToInt(n);
-        other_prev->xorptr ^= PtrToInt(other_next);
-    } else {
-        other.head = other_next;
-    }
-    if (other_next) {
-        other_next->xorptr ^= PtrToInt(n);
-        other_next->xorptr ^= PtrToInt(other_prev);
-    } else {
-        other.tail = other_prev;
-    }
-    // oldHead - n - oldTail
-    if (oldHead) {
-        oldHead->xorptr ^= PtrToInt(oldTail);
-        oldHead->xorptr ^= PtrToInt(n);
-    } else {
-        head = n;
-    }
-    if (oldTail) {
-        oldTail->xorptr ^= PtrToInt(oldHead);
-        oldTail->xorptr ^= PtrToInt(n);
-    } else {
-        tail = n;
-    }
-    n->xorptr = PtrToInt(oldHead) ^ PtrToInt(oldTail);
-    
-    ++size_;
-    --other.size_;
+    splice(pos, other, it, std::next(it));
 }
 
 template <typename T>
@@ -541,37 +514,18 @@ void XorLinkedList<T>:: splice( const_iterator pos, XorLinkedList& other,  const
     node *other_new_head = first.prev; //may be nullptr
     node *other_new_tail = last.curr;  //may be nullptr
     
-    // oldHead - newHead - newTail - oldTail;
-    if (oldHead) {
-        oldHead->xorptr ^= PtrToInt(oldTail);
-        oldHead->xorptr ^= PtrToInt(newHead);
-    } else {
-        head = newHead;
-    }
-    if (oldTail) {
-        oldTail->xorptr ^= PtrToInt(oldHead);
-        oldTail->xorptr ^= PtrToInt(newTail);
-    } else {
-        tail = newTail;
-    }
-    newHead->xorptr ^= PtrToInt(other_new_head);
-    newHead->xorptr ^= PtrToInt(oldHead);
-    newTail->xorptr ^= PtrToInt(other_new_tail);
-    newTail->xorptr ^= PtrToInt(oldTail);
     
     //other_new_head - other_new_tail
-    if (other_new_head) {
-        other_new_head->xorptr ^= PtrToInt(newHead);
-        other_new_head->xorptr ^= PtrToInt(other_new_tail);
-    } else {
-        other.head = other_new_tail;
-    }
-    if (other_new_tail) {
-        other_new_tail->xorptr ^= PtrToInt(newTail);
-        other_new_tail->xorptr ^= PtrToInt(other_new_head);
-    } else {
-        other.tail = other_new_head;
-    }
+    if (!other_new_head) other.head = other_new_tail;
+    if (!other_new_tail) other.tail = other_new_head;
+    detach_nodes(other_new_head,newHead,newTail,other_new_tail);
+    
+    // oldHead - newHead - newTail - oldTail;
+    if (!oldHead) head = newHead;
+    if (!oldTail) tail = newTail;
+    link_or_unlink_nodes(oldHead,oldTail);
+    link_or_unlink_nodes(oldHead,newHead);
+    link_or_unlink_nodes(newTail,oldTail);
     
     size_ += distance;
     other.size_ -= distance;
@@ -625,17 +579,9 @@ template <typename T>
 typename XorLinkedList<T>::iterator XorLinkedList<T>::insertNodes(const_iterator pos, node* newHead,node *newTail, size_type new_size) {
     node *next = pos.curr;
     node *prev = pos.prev;
-    newHead->xorptr ^= PtrToInt(prev);
-    newTail->xorptr ^= PtrToInt(next);
-    
-    if (prev) {
-        prev->xorptr ^= PtrToInt(next);
-        prev->xorptr ^= PtrToInt(newHead);
-    }
-    if (next) {
-        next->xorptr ^= PtrToInt(prev);
-        next->xorptr ^= PtrToInt(newTail);
-    }
+    link_or_unlink_nodes(prev,next);
+    link_or_unlink_nodes(prev,newHead);
+    link_or_unlink_nodes(newTail,next);
     if (!prev) head = newHead;
     if (!next) tail = newTail;
     pos.prev = newTail;
@@ -703,18 +649,7 @@ void XorLinkedList<T>::push_front(T &&v){
     }
     size_++;
 }
-//
-//template <typename T>
-//void XorLinkedList<T>::pop_back() {
-//    if (empty()) {
-//        return;
-//    }
-//    node *oldTail = tail;
-//    node *newTail = node::another(tail,nullptr);
-//    delete oldTail;
-//    tail = newTail;
-//    size_--;
-//}
+
 
 #undef PtrToInt
 #undef IntToPtr
