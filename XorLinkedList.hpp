@@ -69,9 +69,6 @@ class XorLinkedList {
         //do not declare as method, since `curr` may be nullptr
         static node *another(node* curr, node* one) noexcept; //->another
         void link(node *former,node *latter);
-        
-        //FIXME: current `~node` assumes `this` is the head
-        ~node() noexcept(std::is_nothrow_destructible<T>::value) ;
     };
     
     //Wrapper so that List can put on the stack
@@ -318,21 +315,6 @@ typename XorLinkedList<T>::node * XorLinkedList<T>::node::another(node*curr, nod
     return nullptr; //instead of NULL
 }
 
-template <typename T>
-XorLinkedList<T>::node::~node() noexcept(std::is_nothrow_destructible<T>::value) {
-//    auto B = another(this,nullptr);
-//    if (B) {
-//        //A -> B -> C
-//        //I am head A!
-//        auto C = another(B,this);
-//        B->xorptr = PtrToInt(C);
-//        delete B;
-//    }
-    //        else {
-    //I am tail
-    //do nothing
-    //        }
-}
 
 //NOTE: `this` must be head or tail
 template <typename T>
