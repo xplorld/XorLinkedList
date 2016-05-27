@@ -634,7 +634,7 @@ void XorLinkedList<T>::push_back(T &&v){
         tail = tail->join(new node(std::move(v)));
     } else {
         //empty linked list
-        head = new node(new node(std::move(v)));
+        head = new node(std::move(v));
         tail = head;
     }
     size_++;
@@ -668,10 +668,10 @@ void XorLinkedList<T>::push_front(const T &v){
 template <typename T>
 void XorLinkedList<T>::push_front(T &&v){
     if (head) {
-        head = head->join(new node(std::addressof(v)));
+        head = head->join(new node(std::move(v)));
     } else {
         //empty linked list
-        head = new node(new node(std::move(v)));
+        head = new node(std::move(v));
         tail = head;
     }
     size_++;
