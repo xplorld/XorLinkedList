@@ -74,7 +74,7 @@ class XorLinkedList {
         : xorptr(0),value(v){} //copy
     
         
-        template< typename ... Args >
+        template< typename ... Args > //shoule only be called by emplace functions
         node(std::false_type,Args && ... args) : xorptr(0), value(std::forward<Args>(args)...) {}
         
         
@@ -239,6 +239,11 @@ public:
     template< class InputIt >
     iterator insert( const_iterator pos, InputIt first, InputIt last );
     iterator insert( const_iterator pos, std::initializer_list<T> ilist ) {return insert(pos, ilist.begin(), ilist.end());}
+    
+    template< class... Args >
+    iterator emplace( const_iterator pos, Args&&... args ) {
+        return insertNode(pos, new node(std::false_type(),std::forward<Args>(args)...));
+    }
     
     void push_back(const T &v);
     void push_back(T &&v);

@@ -349,9 +349,13 @@ void assignment() {
 void emplace() {
     XorLinkedList<Shouter> list;
     list.emplace_back(1);
-    list.emplace_back(2);
+    list.emplace_back(3);
     list.emplace_front(0);
-    for (auto &i:list) i.hw(); //0,1,2
+    
+    auto iter = list.begin();
+    std::advance(iter, 2);
+    list.emplace(iter, 2);
+    for (auto &i:list) i.hw(); //0,1,2,3
 }
 
 int main() {
