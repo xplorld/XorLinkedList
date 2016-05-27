@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <vector>
 #include <list>
+#include <string>
 #include <deque>
 #include <typeinfo>
 #include <algorithm>
@@ -38,6 +39,7 @@ public:
         printf("I am born,  I am %d!\n",i);
     }
 };
+
 
 
 template <typename container>
@@ -342,18 +344,26 @@ void assignment() {
     for (auto &i:list) i.hw();
     printf("\n");
     
-    
+}
+
+void emplace() {
+    XorLinkedList<Shouter> list;
+    list.emplace_back(1);
+    list.emplace_back(2);
+    for (auto &i:list) i.hw();
 }
 
 int main() {
-//    initWithSingleElement();
-//    initWithContainers();
-//    initWithIterators();
-//    copyAndMove();
-//    appendAndJoin();
-//    iterators();
+    initWithSingleElement();
+    initWithContainers();
+    initWithIterators();
+    copyAndMove();
+    appendAndJoin();
+    iterators();
     modify();
     operations();
     compare();
     assignment();
+    emplace();
+    
 }

@@ -72,6 +72,11 @@ class XorLinkedList {
         node(const T &v)
         noexcept(std::is_nothrow_constructible<T, const T &>::value)
         : xorptr(0),value(v){} //copy
+    
+        
+        template< typename ... Args >
+        node(std::false_type,Args && ... args) : xorptr(0), value(std::forward<Args>(args)...) {}
+        
         
         template < typename input_iterator>
         node(const input_iterator v)
@@ -233,7 +238,11 @@ public:
     
     void push_back(const T &v);
     void push_back(T &&v);
+    
+    template< typename... Args >
+    void emplace_back( Args&&... args );
     //emplace_back
+    
     void pop_back() noexcept(std::is_nothrow_destructible<node>::value)     {erase(--cend());}
     void push_front(const T &v);
     void push_front(T &&v);
@@ -354,7 +363,6 @@ typename XorLinkedList<T>::node * XorLinkedList<T>::node::another(node*curr, nod
     if (n) return n;
     return nullptr; //instead of NULL
 }
-
 
 //NOTE: `this` must be head or tail
 template <typename T>
@@ -631,6 +639,20 @@ void XorLinkedList<T>::push_back(T &&v){
     }
     size_++;
 }
+
+template <typename T>
+template < typename ... Args>
+void XorLinkedList<T>::emplace_back( Args&&... args ) {
+    if (tail) {
+        tail = tail->join(new node(std::false_type() , std::forward<Args>(args)...));
+    } else {
+        //empty linked list
+        head = new node(std::false_type() , std::forward<Args>(args)...);
+        tail = head;
+    }
+    size_++;
+}
+
 template <typename T>
 void XorLinkedList<T>::push_front(const T &v){
     if (head) {
