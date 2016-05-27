@@ -165,6 +165,10 @@ class XorLinkedList {
     
     iterator insertNodes(const_iterator pos, node* newHead,node *newTail, size_type new_size);
     iterator insertNode(const_iterator pos, node* n) {return insertNodes(pos, n, n, 1);}
+    
+    void push_back_(node *n);
+    void push_front_(node *n);
+    
 public:
     
 #pragma mark - ctors
@@ -194,7 +198,7 @@ public:
     XorLinkedList& operator=( XorLinkedList&& other ) {other.swap(*this); return *this;}
     XorLinkedList& operator=( std::initializer_list<T> ilist ) { XorLinkedList list(ilist); list.swap(*this);  return *this;}
     template <typename Container, class = typename std::enable_if<is_container<Container>::value>::type>
-    XorLinkedList& operator=(Container container) { XorLinkedList list(container); list.swap(*this); return *this;}
+    XorLinkedList& operator=(Container container) { XorLinkedList list(std::move(container)); list.swap(*this); return *this;}
 #pragma mark - iterators
     
     iterator begin() noexcept                       { return iterator(nullptr, head);}
@@ -238,16 +242,16 @@ public:
     
     void push_back(const T &v);
     void push_back(T &&v);
-    
+    void pop_back() noexcept(std::is_nothrow_destructible<node>::value)     {erase(--cend());}
     template< typename... Args >
     void emplace_back( Args&&... args );
-    //emplace_back
     
-    void pop_back() noexcept(std::is_nothrow_destructible<node>::value)     {erase(--cend());}
     void push_front(const T &v);
     void push_front(T &&v);
-    //emplace_front
     void pop_front() noexcept(std::is_nothrow_destructible<node>::value)    {erase(cbegin());}
+    template< typename... Args >
+    void emplace_front( Args&&... args );
+    
     //resize
     void swap(XorLinkedList &other) {std::swap(head, other.head); std::swap(tail, other.tail); std::swap(size_, other.size_);}
     
@@ -615,66 +619,63 @@ typename XorLinkedList<T>::iterator XorLinkedList<T>::insert( const_iterator pos
     return insertNodes(pos, std::get<0>(tuple), std::get<1>(tuple),std::get<2>(tuple));
 }
 
-
 template <typename T>
-void XorLinkedList<T>::push_back(const T &v){
+void XorLinkedList<T>::push_back_(XorLinkedList::node *n) {
     if (tail) {
-        tail = tail->join(new node(std::addressof(v)));
+        tail = tail->join(n);
     } else {
         //empty linked list
-        head = new node(std::addressof(v));
+        head = n;
         tail = head;
     }
     size_++;
 }
 
 template <typename T>
+void XorLinkedList<T>::push_back(const T &v){
+    push_back_(new node(std::addressof(v)));
+}
+
+template <typename T>
 void XorLinkedList<T>::push_back(T &&v){
-    if (tail) {
-        tail = tail->join(new node(std::move(v)));
-    } else {
-        //empty linked list
-        head = new node(std::move(v));
-        tail = head;
-    }
-    size_++;
+    push_back_(new node(std::move(v)));
+    
 }
 
 template <typename T>
 template < typename ... Args>
 void XorLinkedList<T>::emplace_back( Args&&... args ) {
-    if (tail) {
-        tail = tail->join(new node(std::false_type() , std::forward<Args>(args)...));
+    push_back_(new node(std::false_type() , std::forward<Args>(args)...));
+    
+}
+
+template <typename T>
+void XorLinkedList<T>::push_front_(XorLinkedList::node *n) {
+    if (head) {
+        head = head->join(n);
     } else {
         //empty linked list
-        head = new node(std::false_type() , std::forward<Args>(args)...);
+        head = n;
         tail = head;
     }
     size_++;
+}
+
+
+template <typename T>
+template < typename ... Args>
+void XorLinkedList<T>::emplace_front( Args&&... args ) {
+    push_front_(new node(std::false_type() , std::forward<Args>(args)...));
 }
 
 template <typename T>
 void XorLinkedList<T>::push_front(const T &v){
-    if (head) {
-        head = head->join(new node(std::addressof(v)));
-    } else {
-        //empty linked list
-        head = new node(std::addressof(v));
-        tail = head;
-    }
-    size_++;
+    push_front_(new node(std::addressof(v)));
 }
 
 template <typename T>
 void XorLinkedList<T>::push_front(T &&v){
-    if (head) {
-        head = head->join(new node(std::move(v)));
-    } else {
-        //empty linked list
-        head = new node(std::move(v));
-        tail = head;
-    }
-    size_++;
+    push_front_(new node(std::move(v)));
 }
 
 template <typename T>

@@ -321,11 +321,11 @@ void assignment() {
     printf("list inited\n");
     XorLinkedList<Shouter> list;
     
-     //assignment by lvalue ref
+    //assignment by lvalue ref
     list = list_lvalue;
     printf("list assigned\n");
     
-     //assignment by init list
+    //assignment by init list
     list = {Shouter(4),Shouter(5),Shouter(6)};
     printf("list assigned\n");
     
@@ -337,10 +337,10 @@ void assignment() {
     auto vec = std::vector<Shouter>({Shouter(7),Shouter(8),Shouter(9)});
     printf("vec inited\n");
     list = vec;
-    list = std::move(vec);
     printf("list assigned\n");
-    
-    list.assign(5, Shouter(5));
+    list = std::move(vec);
+    printf("list moved\n");
+    //    list.assign(5, Shouter(5));
     for (auto &i:list) i.hw();
     printf("\n");
     
@@ -350,7 +350,8 @@ void emplace() {
     XorLinkedList<Shouter> list;
     list.emplace_back(1);
     list.emplace_back(2);
-    for (auto &i:list) i.hw();
+    list.emplace_front(0);
+    for (auto &i:list) i.hw(); //0,1,2
 }
 
 int main() {
