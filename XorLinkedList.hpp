@@ -9,39 +9,34 @@
 #ifndef XorLinkedList_hpp
 #define XorLinkedList_hpp
 
-#include <utility>
-#include <iterator>
-#include <limits>
-#include <cstdint>
 #include <cassert>
-#include <tuple>
+#include <algorithm>
 #include <functional>
 #include <type_traits>
+
 #include "is_container_SFINAE.h"
-#include <algorithm>
+
 
 #define PtrToInt(p) reinterpret_cast<uintptr_t>((void *)(p))
 #define IntToPtr(i) reinterpret_cast<node *>((i))
 
-//template <typename T, typename A = std::allocator<T> >
-//class XorLinkedList {
-//    typedef A allocator_type;
-//    typedef typename A::value_type value_type;
-//    typedef typename A::reference reference;
-//    typedef typename A::const_reference const_reference;
-//    typedef typename A::difference_type difference_type;
-//    typedef typename A::size_type size_type;
-//
-template <typename T>
+
+template <typename T, typename A = std::allocator<T> >
 class XorLinkedList {
-    //        typedef A allocator_type;
+    typedef A allocator_type;
     typedef T value_type;
     typedef T& reference;
     typedef const T& const_reference;
-    //        typedef typename A::difference_type difference_type;
+    typedef typename A::difference_type difference_type;
     typedef size_t size_type;
     
+    class node;
+    typedef typename std::allocator_traits<A>::template rebind_alloc<node> node_allocator;
+    //    typedef allocator_traits<node_allocator> node_alloc_traits;
+    node_allocator allocator;
+    
     class node {
+        friend node_allocator;
         friend XorLinkedList;
         friend void detach_nodes(node *a,node *b,node *c,node *d) {
                 //a-b-...-c-d -> a-d, b-...-c
@@ -70,37 +65,21 @@ class XorLinkedList {
         noexcept(std::is_nothrow_move_constructible<T>::value)
         : xorptr(0),value(std::move(v)){}
         
-        node(const T &v)
-        noexcept(std::is_nothrow_constructible<T, const T &>::value)
-        : xorptr(0),value(v){} //copy
-    
-        
-        template< typename ... Args > //shoule only be called by emplace functions
-        node(std::false_type,Args && ... args) : xorptr(0), value(std::forward<Args>(args)...) {}
-        
-        
         template < typename input_iterator>
         node(const input_iterator v)
         noexcept(std::is_nothrow_constructible<T, const input_iterator>::value)
         : xorptr(0),value(*v){} //copy, not move
         
+        template< typename ... Args > //shoule only be called by emplace functions
+        node(std::false_type,Args && ... args) : xorptr(0), value(std::forward<Args>(args)...) {}
+        
         node* join(node *newNode) noexcept;
-        
-        static std::tuple<node *, node *,size_type> newList(const T& value,size_type count);
-        
-        template < typename input_iterator>
-        static std::tuple<node *, node *,size_type> newList(input_iterator begin,input_iterator end);
-        
-        template < typename input_iterator>
-        static std::tuple<node *, node *,size_type> newList(std::move_iterator<input_iterator> begin,std::move_iterator<input_iterator> end);
         
         //do not declare as method, since `curr` may be nullptr
         static node *another(node* curr, node* one) noexcept; //->another
         void link(node *former,node *latter);
     };
     
-    //Wrapper so that List can put on the stack
-    //and befriend RAII
     node *head = nullptr;
     //last `Node` that is not nullptr
     node *tail = nullptr;
@@ -121,9 +100,10 @@ class XorLinkedList {
         //only allow non-const to const
         iterator_(const iterator_<false> &copyFrom) noexcept  : prev(copyFrom.prev),curr(copyFrom.curr) {}
         
-        typename iterator_::reference operator*()
+        //T& for <false>, const T& for <true>
+        typename iterator_::reference operator*() const
         {assert(curr != nullptr && "dereference null iterator!"); return  curr->value; }
-        typename iterator_::pointer operator->() {return std::addressof(operator*());}
+        typename iterator_::pointer operator->() const {return std::addressof(operator*());}
         
         iterator_ &operator++() noexcept ;      //++i
         iterator_ operator++ ( int ) noexcept;  //i++
@@ -164,20 +144,44 @@ class XorLinkedList {
     typedef reverse_iterator_<false> reverse_iterator;
     typedef reverse_iterator_<true> const_reverse_iterator;
     
-    iterator insertNodes(const_iterator pos, node* newHead,node *newTail, size_type new_size);
-    iterator insertNode(const_iterator pos, node* n) {return insertNodes(pos, n, n, 1);}
-    
     iterator iteratorAt(size_type n);
     void push_back_(node *n);
     void push_front_(node *n);
+    
+    //returns iter to first inserted value
+    iterator splice_( const_iterator pos, XorLinkedList& other,  const_iterator first, const_iterator last);
+    
+    template< class... Args >
+    XorLinkedList(std::false_type ,Args&&... args ) : size_(1) {
+        node * n = allocator.allocate(1);
+        allocator.construct(n,std::false_type(),std::forward<Args>(args)...);
+        head = n;
+        tail = head;
+    }
     
 public:
     
 #pragma mark - ctors
     XorLinkedList() : head(nullptr), tail(nullptr), size_(0) {}
-    XorLinkedList(const T* v) : head(new node(v)), tail(head), size_(1) {}
-    XorLinkedList(const T& v) : head(new node(v)), tail(head), size_(1) {}
-    XorLinkedList(T&& v) : head(new node(std::move(v))), tail(head), size_(1) {}
+    XorLinkedList(const T* v) : size_(1) {
+        node * n = allocator.allocate(1);
+        allocator.construct(n,v);;
+        head = n;
+        tail = head;
+    }
+    
+    XorLinkedList(const T& v)  : size_(1) {
+        node * n = allocator.allocate(1);
+        allocator.construct(n,std::addressof(v));
+        head = n;
+        tail = head;
+    }
+    XorLinkedList(T&& v)  : size_(1) {
+        node * n = allocator.allocate(1);
+        allocator.construct(n,std::move(v));
+        head = n;
+        tail = head;
+    }
     
     XorLinkedList(std::initializer_list<T> array) : XorLinkedList(array.begin(),array.end()) {}
     
@@ -235,8 +239,14 @@ public:
     void erase(const_iterator pos);
     void erase_ref(const_iterator &pos);
     
-    iterator insert(const_iterator pos, const T& value) {return insertNode(pos, new node(std::addressof(value)));}
-    iterator insert(const_iterator pos, T&& value)      {return insertNode(pos, new node(std::move(value)));}
+    iterator insert(const_iterator pos, const T& value) {
+        XorLinkedList list(value);
+        return splice_(pos, list,list.begin(),list.end());
+    }
+    iterator insert(const_iterator pos, T&& value) {
+        XorLinkedList list(std::move(value));
+        return splice_(pos, list,list.begin(),list.end());
+    }
     iterator insert( const_iterator pos, size_type count, const T& value );
     template< class InputIt >
     iterator insert( const_iterator pos, InputIt first, InputIt last );
@@ -244,7 +254,8 @@ public:
     
     template< class... Args >
     iterator emplace( const_iterator pos, Args&&... args ) {
-        return insertNode(pos, new node(std::false_type(),std::forward<Args>(args)...));
+        XorLinkedList list(std::false_type(),std::forward<Args>(args)...);
+        return splice_(pos, list,list.begin(),list.end());
     }
     
     void push_back(const T &v);
@@ -260,7 +271,7 @@ public:
     void emplace_front( Args&&... args );
     
     //only support type with default ctors
-    void resize( size_type count );
+    void resize( size_type count ) {resize(count, value_type());};
     void resize( size_type count, const value_type& value );
     
     void swap(XorLinkedList &other) {std::swap(head, other.head); std::swap(tail, other.tail); std::swap(size_, other.size_);}
@@ -309,72 +320,8 @@ public:
     
 };
 
-
-template <typename T>
-typename std::tuple< typename XorLinkedList<T>::node *, typename XorLinkedList<T>::node *, typename XorLinkedList<T>::size_type>
-XorLinkedList<T>::node::newList(const T& value,size_type count) {
-    if (!count) return std::make_tuple(nullptr,nullptr,0);
-    node *list = new node(std::addressof(value));
-    node *tail = list;
-    for (size_type i = 1; i < count; ++i) {
-        tail = tail->join(new node(std::addressof(value)));
-    }
-    return std::make_tuple(list,tail,count);
-}
-
-template <typename T>
-template <typename input_iterator>
-typename std::tuple< typename XorLinkedList<T>::node *, typename XorLinkedList<T>::node *, typename XorLinkedList<T>::size_type>
-XorLinkedList<T>::node::newList(input_iterator begin,input_iterator end) {
-    node *list = nullptr,*tail = nullptr;
-    size_type size = 0;
-    try {
-        assert(begin != end && "input feed is empty");
-        list = new node(std::addressof(*begin)); //cast iter to pointer
-        ++begin;
-        ++size;
-        tail = list;
-        while (begin != end){
-            
-            tail = tail->join(new node(std::addressof(*begin)));
-            ++begin;
-            ++size;
-        }
-    } catch(...) {
-        delete list;
-        throw;
-    }
-    
-    return std::make_tuple(list, tail,size);
-}
-
-template <typename T>
-template < typename input_iterator>
-typename std::tuple< typename XorLinkedList<T>::node *, typename XorLinkedList<T>::node *,typename XorLinkedList<T>::size_type>
-XorLinkedList<T>::node::newList(std::move_iterator<input_iterator> begin,std::move_iterator<input_iterator> end) {
-    node *list = nullptr,*tail = nullptr;
-    size_type size = 0;
-    try {
-        assert(begin != end && "input feed is empty");
-        list = new node(std::move(begin));
-        ++begin;
-        ++size;
-        tail = list;
-        while (begin != end){
-            tail = tail->join(new node(std::move(begin)));
-            ++begin;
-            ++size;
-        }
-    } catch(...) {
-        delete list;
-        throw;
-    }
-    
-    return std::make_tuple(list, tail, size);
-}
-
-template <typename T>
-typename XorLinkedList<T>::node * XorLinkedList<T>::node::another(node*curr, node* one) noexcept {
+template <typename T, typename A>
+typename XorLinkedList<T,A>::node * XorLinkedList<T,A>::node::another(node*curr, node* one) noexcept {
     if (curr == nullptr) {
         return nullptr;
     }
@@ -384,8 +331,8 @@ typename XorLinkedList<T>::node * XorLinkedList<T>::node::another(node*curr, nod
 }
 
 //NOTE: `this` must be head or tail
-template <typename T>
-typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(node *newNode) noexcept {
+template <typename T, typename A>
+typename XorLinkedList<T,A>::node * XorLinkedList<T,A>::node::join(node *newNode) noexcept {
     //A->B, C.
     //B.p = A, C.p = 0
     
@@ -395,68 +342,104 @@ typename XorLinkedList<T>::node * XorLinkedList<T>::node::join(node *newNode) no
     return newNode;
 }
 
-template <typename T>
+template <typename T, typename A>
 template <bool is_const>
-typename XorLinkedList<T>::template iterator_<is_const> & XorLinkedList<T>::iterator_<is_const>::operator++() noexcept{
+typename XorLinkedList<T,A>::template iterator_<is_const> & XorLinkedList<T,A>::iterator_<is_const>::operator++() noexcept{
     node *nextNode = node::another(curr,prev);
     prev = curr;
     curr = nextNode;
     return *this;
 }
 
-template <typename T>
+template <typename T, typename A>
 template <bool is_const>
-typename XorLinkedList<T>::template iterator_<is_const> XorLinkedList<T>::iterator_<is_const>::operator++( int ) noexcept{
+typename XorLinkedList<T,A>::template iterator_<is_const> XorLinkedList<T,A>::iterator_<is_const>::operator++( int ) noexcept{
     iterator_ nowIter = iterator_(prev,curr);
     operator++();
     return nowIter;
 }
 
-template <typename T>
+template <typename T, typename A>
 template <bool is_const>
-typename XorLinkedList<T>::template iterator_<is_const> & XorLinkedList<T>::iterator_<is_const>::operator--() noexcept {
+typename XorLinkedList<T,A>::template iterator_<is_const> & XorLinkedList<T,A>::iterator_<is_const>::operator--() noexcept {
     node *prevNode = node::another(prev,curr);
     curr = prev;
     prev = prevNode;
     return *this;
 }
 
-template <typename T>
+template <typename T, typename A>
 template <bool is_const>
-typename XorLinkedList<T>::template iterator_<is_const> XorLinkedList<T>::iterator_<is_const>::operator-- ( int ) noexcept
+typename XorLinkedList<T,A>::template iterator_<is_const> XorLinkedList<T,A>::iterator_<is_const>::operator-- ( int ) noexcept
 {
     iterator_ nowIter = iterator_(prev,curr);
     operator--();
     return nowIter;
 }
 
-template <typename T>
+template <typename T, typename A>
 template <bool is_const>
-void  XorLinkedList<T>::iterator_<is_const>::swap(XorLinkedList<T>::iterator_<is_const> &other) noexcept {
+void  XorLinkedList<T,A>::iterator_<is_const>::swap(XorLinkedList<T,A>::iterator_<is_const> &other) noexcept {
     using std::swap;
     swap(prev, other.prev);
     swap(curr, other.curr);
 }
 
-template <typename T>
+template <typename T, typename A>
 template <typename input_iterator>
-XorLinkedList<T>::XorLinkedList(input_iterator begin,input_iterator end) {
-    auto tuple = node::newList(begin,end);
-    head = std::get<0>(tuple);
-    tail = std::get<1>(tuple);
-    size_ = std::get<2>(tuple);
+XorLinkedList<T,A>::XorLinkedList(input_iterator begin,input_iterator end) {
+    
+    node *nbegin = nullptr,*nend = nullptr, *nnext = nullptr;
+    size_type size = 0;
+    if (begin != end) {
+        try {
+            nbegin = allocator.allocate(1);
+            allocator.construct(nbegin,begin);
+            nend = nbegin;
+            
+            ++begin;
+            ++size;
+            for (;begin != end;++begin,++size){
+                nnext = allocator.allocate(1);
+                allocator.construct(nnext,begin);
+                nend = nend->join(nnext);
+            }
+        } catch(...) {
+            erase(const_iterator(nullptr,nbegin), const_iterator(nend,nullptr));
+            allocator.deallocate(nnext,1);
+            nbegin = nend = nnext = nullptr;
+            size = 0;
+            throw;
+        }
+    }
+    head = nbegin;
+    tail = nend;
+    size_ = size;
 }
 
-template <typename T>
-XorLinkedList<T>::XorLinkedList(const T& value, size_type count) {
-    auto tuple = node::newList(value,count);
-    head = std::get<0>(tuple);
-    tail = std::get<1>(tuple);
-    size_ = std::get<2>(tuple);
+template <typename T, typename A>
+XorLinkedList<T,A>::XorLinkedList(const T& value, size_type count) {
+    if (!count) {
+        head = tail = nullptr;
+        size_ = 0;
+        return;
+    }
+    
+    node *nbegin = allocator.allocate(1);
+    allocator.construct(nbegin,std::addressof(value));
+    node *nend = nbegin;
+    for (size_type i = 1; i < count; ++i) {
+        node * nnext = allocator.allocate(1);
+        allocator.construct(nnext,std::addressof(value));
+        nend = nend->join(nnext);
+    }
+    head = nbegin;
+    tail = nend;
+    size_ = count;
 }
 
-template <typename T>
-XorLinkedList<T>::XorLinkedList(XorLinkedList&& another) {
+template <typename T, typename A>
+XorLinkedList<T,A>::XorLinkedList(XorLinkedList&& another) {
     head = another.head;
     tail = another.tail;
     size_ = another.size_;
@@ -465,8 +448,8 @@ XorLinkedList<T>::XorLinkedList(XorLinkedList&& another) {
     another.size_ = 0;
 }
 
-template <typename T>
-void XorLinkedList<T>::erase(const_iterator from,const_iterator until) {
+template <typename T, typename A>
+void XorLinkedList<T,A>::erase(const_iterator from,const_iterator until) {
     if (from == until) return;
     node *prev = from.prev; //last remaining node
     node *head = from.curr;
@@ -481,13 +464,14 @@ void XorLinkedList<T>::erase(const_iterator from,const_iterator until) {
     while (from.curr != until.curr) {
         node *deleteNode = from.curr;
         ++from;
-        delete deleteNode;
+        deleteNode->value.~T();
+        allocator.deallocate(deleteNode,1);
         --size_;
     }
 }
 
-template <typename T>
-void XorLinkedList<T>::erase_ref(const_iterator &from,const_iterator &until) {
+template <typename T, typename A>
+void XorLinkedList<T,A>::erase_ref(const_iterator &from,const_iterator &until) {
     if (from == until) return;
     node *prev = from.prev; //last remaining node
     node *next = until.curr;
@@ -497,23 +481,23 @@ void XorLinkedList<T>::erase_ref(const_iterator &from,const_iterator &until) {
     --from;
 }
 
-template <typename T>
-void XorLinkedList<T>::erase(const_iterator pos) {
+template <typename T, typename A>
+void XorLinkedList<T,A>::erase(const_iterator pos) {
     const_iterator next = pos;
     ++next;
     erase(pos, next);
 }
 
-template <typename T>
-void XorLinkedList<T>::erase_ref(const_iterator &pos) {
+template <typename T, typename A>
+void XorLinkedList<T,A>::erase_ref(const_iterator &pos) {
     const_iterator next = pos;
     ++next;
     erase_ref(pos, next);
 }
 
-template <typename T>
+template <typename T, typename A>
 template <class Compare>
-void XorLinkedList<T>::merge( XorLinkedList& other, Compare comp ) {
+void XorLinkedList<T,A>::merge( XorLinkedList& other, Compare comp ) {
     if (this == &other) return;
     iterator f1 = begin();
     iterator e1 = end();
@@ -541,36 +525,26 @@ void XorLinkedList<T>::merge( XorLinkedList& other, Compare comp ) {
 }
 
 
-template <typename T>
-void XorLinkedList<T>::splice( const_iterator pos, XorLinkedList& other ) {
-    if (&other == this) return;
-    if (!other.size()) return;
-    //there must be something in `other`
-    node *oldHead = pos.prev; // may be nullptr e.g. pos == begin()
-    node *oldTail = pos.curr; // may be nullptr e.g. pos == end()
-    node *newHead = other.head;
-    node *newTail = other.tail;
-    // oldHead - newHead - newTail - oldTail;
-    link_or_unlink_nodes(oldHead,oldTail);
-    link_or_unlink_nodes(oldHead, newHead);
-    link_or_unlink_nodes(newTail, oldTail);
-    
-    if (!oldHead) head = newHead;
-    if (!oldTail) tail = newTail;
-    size_ += other.size_;
-    
-    other.head = nullptr;
-    other.tail = nullptr;
-    other.size_ = 0;
+template <typename T, typename A>
+void XorLinkedList<T,A>::splice( const_iterator pos, XorLinkedList& other ) {
+    splice_(pos, other, other.begin(),other.end());
 }
 
-template <typename T>
-void XorLinkedList<T>::splice( const_iterator pos, XorLinkedList& other, const_iterator it ) {
-    splice(pos, other, it, std::next(it));
+template <typename T, typename A>
+void XorLinkedList<T,A>::splice( const_iterator pos, XorLinkedList& other, const_iterator it ) {
+    splice_(pos, other, it, std::next(it));
 }
 
-template <typename T>
-void XorLinkedList<T>:: splice( const_iterator pos, XorLinkedList& other,  const_iterator first, const_iterator last) {
+template <typename T, typename A>
+void XorLinkedList<T,A>::splice( const_iterator pos, XorLinkedList& other,  const_iterator first, const_iterator last) {
+    splice_(pos, other, first, last);
+}
+
+template <typename T, typename A>
+typename XorLinkedList<T,A>::iterator XorLinkedList<T,A>:: splice_( const_iterator pos, XorLinkedList& other,  const_iterator first, const_iterator last) {
+    
+    if (other.empty()) return iterator(pos.prev,pos.curr);
+    
     auto distance = std::distance(first, last);
     
     node *oldHead = pos.prev; // may be nullptr e.g. pos == begin()
@@ -595,10 +569,12 @@ void XorLinkedList<T>:: splice( const_iterator pos, XorLinkedList& other,  const
     
     size_ += distance;
     other.size_ -= distance;
+    
+    return iterator(oldHead,newHead);
 }
 
-template <typename T>
-void XorLinkedList<T>::remove(const T& value) {
+template <typename T, typename A>
+void XorLinkedList<T,A>::remove(const T& value) {
     for (const_iterator i = cbegin();i != cend();++i) {
         if ((*i) == value) {
             erase_ref(i);
@@ -606,9 +582,9 @@ void XorLinkedList<T>::remove(const T& value) {
     }
 }
 
-template <typename T>
+template <typename T, typename A>
 template< class UnaryPredicate >
-void XorLinkedList<T>::remove_if( UnaryPredicate p ) {
+void XorLinkedList<T,A>::remove_if( UnaryPredicate p ) {
     for (const_iterator i = cbegin();i != cend();++i) {
         if (p(*i)) {
             erase_ref(i);
@@ -616,9 +592,9 @@ void XorLinkedList<T>::remove_if( UnaryPredicate p ) {
     }
 }
 
-template <typename T>
+template <typename T, typename A>
 template< class BinaryPredicate >
-void XorLinkedList<T>::unique( BinaryPredicate p ) {
+void XorLinkedList<T,A>::unique( BinaryPredicate p ) {
     if (size() < 2) {
         return;
     }
@@ -629,8 +605,8 @@ void XorLinkedList<T>::unique( BinaryPredicate p ) {
     }
 }
 
-template <typename T>
-void XorLinkedList<T>::sort() {
+template <typename T, typename A>
+void XorLinkedList<T,A>::sort() {
     //algorithm from libstdc++ 4.6
     //https://gcc.gnu.org/onlinedocs/libstdc++/libstdc++-api-4.6/a00925_source.html#l00355
     // Do nothing if the list has length 0 or 1.
@@ -664,42 +640,28 @@ void XorLinkedList<T>::sort() {
     }
 }
 
-template <typename T>
-typename XorLinkedList<T>::iterator XorLinkedList<T>::insertNodes(const_iterator pos, node* newHead,node *newTail, size_type new_size) {
-    node *next = pos.curr;
-    node *prev = pos.prev;
-    link_or_unlink_nodes(prev,next);
-    link_or_unlink_nodes(prev,newHead);
-    link_or_unlink_nodes(newTail,next);
-    if (!prev) head = newHead;
-    if (!next) tail = newTail;
-    pos.prev = newTail;
-    size_ += new_size;
-    return iterator(prev,newHead);
+
+template <typename T, typename A>
+typename XorLinkedList<T,A>::iterator XorLinkedList<T,A>::insert( const_iterator pos, size_type count, const T& value ) {
+    XorLinkedList list(value,count);
+    return splice_(pos, list,list.begin(),list.end());
 }
 
-template <typename T>
-typename XorLinkedList<T>::iterator XorLinkedList<T>::insert( const_iterator pos, size_type count, const T& value ) {
-    auto tuple = node::newList(value,count);
-    return insertNodes(pos, std::get<0>(tuple), std::get<1>(tuple),std::get<2>(tuple));
-}
-
-template <typename T>
+template <typename T, typename A>
 template< class InputIt >
-typename XorLinkedList<T>::iterator XorLinkedList<T>::insert( const_iterator pos, InputIt first, InputIt last ) {
-    auto tuple = node::newList(first,last);
-    return insertNodes(pos, std::get<0>(tuple), std::get<1>(tuple),std::get<2>(tuple));
-}
+typename XorLinkedList<T,A>::iterator XorLinkedList<T,A>::insert( const_iterator pos, InputIt first, InputIt last ) {
+    XorLinkedList list(first,last);
+return splice_(pos, list,list.begin(),list.end());}
 
-template <typename T>
-typename XorLinkedList<T>::iterator XorLinkedList<T>::iteratorAt(size_type n) {
+template <typename T, typename A>
+typename XorLinkedList<T,A>::iterator XorLinkedList<T,A>::iteratorAt(size_type n) {
     return n < size() / 2
             ? std::next(begin(),n)
             : std::prev(end(),size()-n);
 }
 
-template <typename T>
-void XorLinkedList<T>::push_back_(XorLinkedList::node *n) {
+template <typename T, typename A>
+void XorLinkedList<T,A>::push_back_(XorLinkedList::node *n) {
     if (tail) {
         tail = tail->join(n);
     } else {
@@ -710,26 +672,30 @@ void XorLinkedList<T>::push_back_(XorLinkedList::node *n) {
     size_++;
 }
 
-template <typename T>
-void XorLinkedList<T>::push_back(const T &v){
-    push_back_(new node(std::addressof(v)));
+template <typename T, typename A>
+void XorLinkedList<T,A>::push_back(const T &v){
+    node * n = allocator.allocate(1);
+    allocator.construct(n,std::addressof(v));
+    push_back_(n);
 }
 
-template <typename T>
-void XorLinkedList<T>::push_back(T &&v){
-    push_back_(new node(std::move(v)));
-    
+template <typename T, typename A>
+void XorLinkedList<T,A>::push_back(T &&v){
+    node * n = allocator.allocate(1);
+    allocator.construct(n,std::move(v));
+    push_back_(n);
 }
 
-template <typename T>
+template <typename T, typename A>
 template < typename ... Args>
-void XorLinkedList<T>::emplace_back( Args&&... args ) {
-    push_back_(new node(std::false_type() , std::forward<Args>(args)...));
-    
+void XorLinkedList<T,A>::emplace_back( Args&&... args ) {
+    node * n = allocator.allocate(1);
+    allocator.construct(n,std::false_type() , std::forward<Args>(args)...);
+    push_back_(n);
 }
 
-template <typename T>
-void XorLinkedList<T>::push_front_(XorLinkedList::node *n) {
+template <typename T, typename A>
+void XorLinkedList<T,A>::push_front_(XorLinkedList::node *n) {
     if (head) {
         head = head->join(n);
     } else {
@@ -741,37 +707,30 @@ void XorLinkedList<T>::push_front_(XorLinkedList::node *n) {
 }
 
 
-template <typename T>
+template <typename T, typename A>
 template < typename ... Args>
-void XorLinkedList<T>::emplace_front( Args&&... args ) {
-    push_front_(new node(std::false_type() , std::forward<Args>(args)...));
+void XorLinkedList<T,A>::emplace_front( Args&&... args ) {
+    node * n = allocator.allocate(1);
+    allocator.construct(n,std::false_type() , std::forward<Args>(args)...);
+    push_front_(n);
 }
 
-template <typename T>
-void XorLinkedList<T>::push_front(const T &v){
-    push_front_(new node(std::addressof(v)));
+template <typename T, typename A>
+void XorLinkedList<T,A>::push_front(const T &v){
+    node * n = allocator.allocate(1);
+    allocator.construct(n,std::false_type() , std::addressof(v));
+    push_front_(n);
 }
 
-template <typename T>
-void XorLinkedList<T>::push_front(T &&v){
-    push_front_(new node(std::move(v)));
+template <typename T, typename A>
+void XorLinkedList<T,A>::push_front(T &&v){
+    node * n = allocator.allocate(1);
+    allocator.construct(n,std::move(v));
+    push_front_(n);
 }
 
-template <typename T>
-void XorLinkedList<T>::resize( size_type count ) {
-    resize(count, value_type());
-    //Linear in the difference between the current size and count.
-//    if (count < size()) {
-//        erase(iteratorAt(count), end());
-//    } else {
-//        count -= size();
-//        XorLinkedList newList(value_type(),count);
-//        splice(end(), newList);
-//    }
-}
-
-template <typename T>
-void XorLinkedList<T>::resize( size_type count, const value_type& value ) {
+template <typename T, typename A>
+void XorLinkedList<T,A>::resize( size_type count, const value_type& value ) {
     //Linear in the difference between the current size and count.
     if (count < size()) {
         erase(iteratorAt(count), end());
@@ -783,23 +742,23 @@ void XorLinkedList<T>::resize( size_type count, const value_type& value ) {
 }
 
 
-template <typename T>
-void XorLinkedList<T>::assign( size_type count, const T& value ) {
+template <typename T, typename A>
+void XorLinkedList<T,A>::assign( size_type count, const T& value ) {
     clear();
     XorLinkedList list(value,count);
     list.swap(*this);
 }
 
-template <typename T>
+template <typename T, typename A>
 template< class InputIt >
-void XorLinkedList<T>::assign( InputIt first, InputIt last ) {
+void XorLinkedList<T,A>::assign( InputIt first, InputIt last ) {
     clear();
     XorLinkedList list(first,last);
     list.swap(*this);
 }
 
-template <typename T>
-void XorLinkedList<T>::assign( std::initializer_list<T> ilist ) {
+template <typename T, typename A>
+void XorLinkedList<T,A>::assign( std::initializer_list<T> ilist ) {
     clear();
     XorLinkedList list(ilist);
     list.swap(*this);
