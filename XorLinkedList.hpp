@@ -36,8 +36,10 @@ class XorLinkedList {
     node_allocator allocator;
     
     class node {
+        friend A;
         friend node_allocator;
         friend XorLinkedList;
+        
         friend void detach_nodes(node *a,node *b,node *c,node *d) {
                 //a-b-...-c-d -> a-d, b-...-c
                 //a and b can be null
