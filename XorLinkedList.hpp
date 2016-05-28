@@ -30,15 +30,12 @@ class XorLinkedList {
     typedef typename A::difference_type difference_type;
     typedef size_t size_type;
     
-    class node;
+    struct node;
     typedef typename std::allocator_traits<A>::template rebind_alloc<node> node_allocator;
     //    typedef allocator_traits<node_allocator> node_alloc_traits;
     node_allocator allocator;
     
-    class node {
-        friend A;
-        friend node_allocator;
-        friend XorLinkedList;
+    struct node {
         
         friend void detach_nodes(node *a,node *b,node *c,node *d) {
                 //a-b-...-c-d -> a-d, b-...-c
@@ -289,7 +286,7 @@ public:
     template <class Compare>
     void merge( XorLinkedList& other, Compare comp );
     template <class Compare>
-    void merge( XorLinkedList&& other, Compare comp ) {merge(other,comp);};
+    void merge( XorLinkedList&& other, Compare comp ) {merge(other,comp);}
 
     void splice( const_iterator pos, XorLinkedList& other  );
     void splice( const_iterator pos, XorLinkedList&& other ) { splice(pos, other);}
