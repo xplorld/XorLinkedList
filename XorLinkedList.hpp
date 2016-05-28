@@ -266,7 +266,12 @@ public:
     void assign( std::initializer_list<T> ilist );
 
 #pragma mark - operations
-    //merge
+    void merge( XorLinkedList& other ) {merge(other, std::less<value_type>());};
+    void merge( XorLinkedList&& other ) {merge(other);};
+    template <class Compare>
+    void merge( XorLinkedList& other, Compare comp );
+    template <class Compare>
+    void merge( XorLinkedList&& other, Compare comp ) {merge(other,comp);};
 
     void splice( const_iterator pos, XorLinkedList& other  );
     void splice( const_iterator pos, XorLinkedList&& other ) { splice(pos, other);}
@@ -502,6 +507,36 @@ void XorLinkedList<T>::erase_ref(const_iterator &pos) {
 }
 
 template <typename T>
+template <class Compare>
+void XorLinkedList<T>::merge( XorLinkedList& other, Compare comp ) {
+    if (this == &other) return;
+    iterator f1 = begin();
+    iterator e1 = end();
+    iterator f2 = other.begin();
+    iterator e2 = other.end();
+    while (f1 != e1 && f2 != e2) {
+        if (comp(*f2,*f1)) { //f2 < f1
+            //splice f2 parts before f1
+            size_type size = 1;
+            iterator m2 = std::next(f2);
+            for (; m2 != e2 && comp(*m2,*f1); ++m2,++size); //f2-m2 all < f1
+            splice(f1, other, f2, m2);
+            //here f1,f2 invalidated
+            //e1,e2 may invalidated
+            f1 = begin();
+            e1 = end();
+            f2 = other.begin();
+            e2 = other.end();
+        } else {
+            //f2 >= f1
+            ++f1;
+        }
+    }
+    splice(e1, other);
+}
+
+
+template <typename T>
 void XorLinkedList<T>::splice( const_iterator pos, XorLinkedList& other ) {
     if (other == *this) return;
     if (!other.size()) return;
@@ -514,7 +549,11 @@ void XorLinkedList<T>::splice( const_iterator pos, XorLinkedList& other ) {
     link_or_unlink_nodes(oldHead,oldTail);
     link_or_unlink_nodes(oldHead, newHead);
     link_or_unlink_nodes(newTail, oldTail);
+    
+    if (!oldHead) head = newHead;
+    if (!oldTail) tail = newTail;
     size_ += other.size_;
+    
     other.head = nullptr;
     other.tail = nullptr;
     other.size_ = 0;

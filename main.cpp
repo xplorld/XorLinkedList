@@ -358,6 +358,16 @@ void emplace() {
     for (auto &i:list) i.hw(); //0,1,2,3
 }
 
+void merge() {
+    XorLinkedList<int> list1 {0,2,6,8};
+    XorLinkedList<int> list2 {1,3,4,5,7};
+    list1.merge(list2);
+    printf("\n");
+    for (auto &i:list1) printf("%d ",i);
+    printf("\n");
+    for (auto &i:list2) printf("%d ",i);
+}
+
 int main() {
     initWithSingleElement();
     initWithContainers();
@@ -370,5 +380,6 @@ int main() {
     compare();
     assignment();
     emplace();
+    merge();
     
 }
