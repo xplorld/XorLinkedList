@@ -368,6 +368,13 @@ void merge() {
     for (auto &i:list2) printf("%d ",i);
 }
 
+void sort() {
+    XorLinkedList<int> list {1,5,3,5,6,2,1,4};
+    list.sort();
+    printf("\n");
+    for (auto &i:list) printf("%d ",i);
+}
+
 int main() {
     initWithSingleElement();
     initWithContainers();
@@ -381,5 +388,6 @@ int main() {
     assignment();
     emplace();
     merge();
+    sort();
     
 }

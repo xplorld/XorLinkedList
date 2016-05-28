@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <cassert>
 #include <tuple>
+#include <functional>
 #include <type_traits>
 #include "is_container_SFINAE.h"
 #include <algorithm>
@@ -287,10 +288,10 @@ public:
     
     //NOTE: this `reverse` invalidates all iterators!
     void reverse() {std::swap(head, tail);}
-    void unique();
+    void unique() {unique(std::equal_to<value_type>());};
     template< class BinaryPredicate >
     void unique( BinaryPredicate p );
-    //sort (what?)
+    void sort();
     
 #pragma mark - desctructor
     ~XorLinkedList()                        {clear();}
@@ -612,18 +613,6 @@ void XorLinkedList<T>::remove_if( UnaryPredicate p ) {
 }
 
 template <typename T>
-void XorLinkedList<T>::unique() {
-    if (size() < 2) {
-        return;
-    }
-    for (const_iterator i = ++cbegin(); i != cend(); ++i) {
-        if (i.prev->value == i.curr->value) {
-            erase_ref(i);
-        }
-    }
-}
-
-template <typename T>
 template< class BinaryPredicate >
 void XorLinkedList<T>::unique( BinaryPredicate p ) {
     if (size() < 2) {
@@ -633,6 +622,41 @@ void XorLinkedList<T>::unique( BinaryPredicate p ) {
         if (p(i.prev->value , i.curr->value)) {
             erase_ref(i);
         }
+    }
+}
+
+template <typename T>
+void XorLinkedList<T>::sort() {
+    //algorithm from libstdc++ 4.6
+    //https://gcc.gnu.org/onlinedocs/libstdc++/libstdc++-api-4.6/a00925_source.html#l00355
+    // Do nothing if the list has length 0 or 1.
+    if (size() > 1)
+    {
+        XorLinkedList carry;
+        XorLinkedList tmp[64];
+        XorLinkedList * fill = &tmp[0];
+        XorLinkedList * counter;
+        
+        do
+        {
+            carry.splice(carry.begin(), *this, begin());
+            
+            for(counter = &tmp[0];
+                counter != fill && !counter->empty();
+                ++counter)
+            {
+                counter->merge(carry);
+                carry.swap(*counter);
+            }
+            carry.swap(*counter);
+            if (counter == fill)
+                ++fill;
+        }
+        while ( !empty() );
+        
+        for (counter = &tmp[1]; counter != fill; ++counter)
+            counter->merge(*(counter - 1));
+        swap( *(fill - 1) );
     }
 }
 
