@@ -11,12 +11,9 @@ A C++ Library that defines a templated XOR-Linked List.
 	- single element
 	- or nothing.
 
-- Provided `begin/end`,`cbegin/cend`,`rbegin/rend`,`crbegin/crend`.
+- Implemented all `std::list` methods. Try to `#define list XorLinkedList` :)
 - Inherited from `std::iterator`, so feel free to use `#include <algorithm>` or range-based for!
 - Full move semantics supported, try `std::move`
-
-
-If not used as parameters, please declare on stack not heap, let RAII your friend!
 
 ### This Library
 
@@ -34,20 +31,6 @@ Good old double Linked list has 2 fields of address pointers, `prev` and `next`.
 	next = curr->ptr ^ prev 
 	prev = curr->ptr ^ next 
 
-
-### ToDo
-
-- remove?
-- new List of slice from `iterator` pair?
-- join of list?
-
-### Done
-
-- `size`
-- `rbegin` and `rend`
-- make `iterator` a real STL-compliant `std::iterator`
-- `operator==`
-- `const_iterator` 
 
 ### Me
 
