@@ -167,6 +167,7 @@ class XorLinkedList {
     iterator insertNodes(const_iterator pos, node* newHead,node *newTail, size_type new_size);
     iterator insertNode(const_iterator pos, node* n) {return insertNodes(pos, n, n, 1);}
     
+    iterator iteratorAt(size_type n);
     void push_back_(node *n);
     void push_front_(node *n);
     
@@ -258,7 +259,10 @@ public:
     template< typename... Args >
     void emplace_front( Args&&... args );
     
-    //resize
+    //only support type with default ctors
+    void resize( size_type count );
+    void resize( size_type count, const value_type& value );
+    
     void swap(XorLinkedList &other) {std::swap(head, other.head); std::swap(tail, other.tail); std::swap(size_, other.size_);}
     
     void assign( size_type count, const T& value );
@@ -539,7 +543,7 @@ void XorLinkedList<T>::merge( XorLinkedList& other, Compare comp ) {
 
 template <typename T>
 void XorLinkedList<T>::splice( const_iterator pos, XorLinkedList& other ) {
-    if (other == *this) return;
+    if (&other == this) return;
     if (!other.size()) return;
     //there must be something in `other`
     node *oldHead = pos.prev; // may be nullptr e.g. pos == begin()
@@ -688,6 +692,13 @@ typename XorLinkedList<T>::iterator XorLinkedList<T>::insert( const_iterator pos
 }
 
 template <typename T>
+typename XorLinkedList<T>::iterator XorLinkedList<T>::iteratorAt(size_type n) {
+    return n < size() / 2
+            ? std::next(begin(),n)
+            : std::prev(end(),size()-n);
+}
+
+template <typename T>
 void XorLinkedList<T>::push_back_(XorLinkedList::node *n) {
     if (tail) {
         tail = tail->join(n);
@@ -745,6 +756,32 @@ template <typename T>
 void XorLinkedList<T>::push_front(T &&v){
     push_front_(new node(std::move(v)));
 }
+
+template <typename T>
+void XorLinkedList<T>::resize( size_type count ) {
+    resize(count, value_type());
+    //Linear in the difference between the current size and count.
+//    if (count < size()) {
+//        erase(iteratorAt(count), end());
+//    } else {
+//        count -= size();
+//        XorLinkedList newList(value_type(),count);
+//        splice(end(), newList);
+//    }
+}
+
+template <typename T>
+void XorLinkedList<T>::resize( size_type count, const value_type& value ) {
+    //Linear in the difference between the current size and count.
+    if (count < size()) {
+        erase(iteratorAt(count), end());
+    } else {
+        count -= size();
+        XorLinkedList newList(value, count);
+        splice(end(), newList);
+    }
+}
+
 
 template <typename T>
 void XorLinkedList<T>::assign( size_type count, const T& value ) {

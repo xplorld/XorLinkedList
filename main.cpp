@@ -375,6 +375,19 @@ void sort() {
     for (auto &i:list) printf("%d ",i);
 }
 
+void resize() {
+    XorLinkedList<Shouter> list {Shouter(7),Shouter(8),Shouter(9),Shouter(10),Shouter(11)};
+    printf("\n");
+    for (auto &i:list) i.hw();
+    list.resize(3, Shouter(0));
+    printf("\n");
+    for (auto &i:list) i.hw();
+    list.resize(10, Shouter(12));
+    printf("\n");
+    for (auto &i:list) i.hw();
+    
+}
+
 int main() {
     initWithSingleElement();
     initWithContainers();
@@ -389,5 +402,6 @@ int main() {
     emplace();
     merge();
     sort();
+    resize();
     
 }
